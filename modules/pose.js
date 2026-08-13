@@ -1,487 +1,215 @@
 /* =========================================================
-   설천고 SPORTS PERFORMANCE ANALYSIS SYSTEM
-   MODULES / POSE.JS
-   VERSION 1.0
+   SEOLCHEON HIGH SCHOOL
+   SPORTS PERFORMANCE ANALYSIS SYSTEM
 
-   기능
-   ---------------------------------------------------------
-   - Camera / Video 프레임 수신
-   - Pose landmark 표준화
-   - 2D 스켈레톤 표시
-   - 관절 각도 계산
-   - 좌우 대칭 분석
-   - 몸통 전경각 계산
-   - 관절 좌표 기록
-   - 핵심 프레임 저장
-   - 각도 표시 이미지 생성
-   - Sports Analysis 엔진으로 데이터 전달
+   POSE / BIOMECHANICS ENGINE
 
-   IMPORTANT
-   ---------------------------------------------------------
-   실제 landmark 검출은 MediaPipe 등의
-   Pose Detector가 필요하다.
-
-   이 파일은 검출된 landmark를 분석하는
-   설천고 전용 분석 레이어이다.
+   - Skeleton rendering
+   - Joint angle calculation
+   - Left / Right comparison
+   - Pose overlay
+   - Sport-analysis integration
+   - Video / Camera integration
 ========================================================= */
 
 "use strict";
 
 
-/* =========================================================
-   01. CONFIG
-========================================================= */
+window.SeolcheonPose = (() => {
 
-const POSE_CONFIG = {
+  /* =====================================================
+     STATE
+  ===================================================== */
 
-  minimumConfidence: 0.5,
+  let video = null;
 
-  analysisInterval: 33,
+  let canvas = null;
 
-  drawSkeleton: true,
+  let ctx = null;
 
-  drawJoints: true,
+  let running = false;
 
-  drawAngles: true,
+  let animationId = null;
 
-  jointRadius: 5,
+  let lastLandmarks = null;
 
-  lineWidth: 3,
 
-  historyLimit: 300,
+  const state = {
 
-  snapshotQuality: 0.92
+    detected: false,
 
-};
+    angles: {},
 
+    symmetry: null,
 
-/* =========================================================
-   02. LANDMARK INDEX
+    landmarks: null
 
-   MediaPipe Pose 33 Landmark 기준
-========================================================= */
+  };
 
-const POSE_LANDMARKS = {
 
-  nose: 0,
+  /* =====================================================
+     LANDMARK INDEX
 
-  leftEye: 2,
-  rightEye: 5,
+     MediaPipe Pose 기준
+  ===================================================== */
 
-  leftEar: 7,
-  rightEar: 8,
+  const LM = {
 
-  leftShoulder: 11,
-  rightShoulder: 12,
+    NOSE: 0,
 
-  leftElbow: 13,
-  rightElbow: 14,
+    LEFT_SHOULDER: 11,
+    RIGHT_SHOULDER: 12,
 
-  leftWrist: 15,
-  rightWrist: 16,
+    LEFT_ELBOW: 13,
+    RIGHT_ELBOW: 14,
 
-  leftHip: 23,
-  rightHip: 24,
+    LEFT_WRIST: 15,
+    RIGHT_WRIST: 16,
 
-  leftKnee: 25,
-  rightKnee: 26,
+    LEFT_HIP: 23,
+    RIGHT_HIP: 24,
 
-  leftAnkle: 27,
-  rightAnkle: 28,
+    LEFT_KNEE: 25,
+    RIGHT_KNEE: 26,
 
-  leftHeel: 29,
-  rightHeel: 30,
+    LEFT_ANKLE: 27,
+    RIGHT_ANKLE: 28,
 
-  leftFoot: 31,
-  rightFoot: 32
+    LEFT_HEEL: 29,
+    RIGHT_HEEL: 30,
 
-};
+    LEFT_FOOT: 31,
+    RIGHT_FOOT: 32
 
+  };
 
-/* =========================================================
-   03. SKELETON CONNECTIONS
-========================================================= */
 
-const POSE_CONNECTIONS = [
+  /* =====================================================
+     SKELETON CONNECTIONS
+  ===================================================== */
 
-  ["leftShoulder", "rightShoulder"],
+  const CONNECTIONS = [
 
-  ["leftShoulder", "leftElbow"],
-  ["leftElbow", "leftWrist"],
+    [11, 12],
 
-  ["rightShoulder", "rightElbow"],
-  ["rightElbow", "rightWrist"],
+    [11, 13],
+    [13, 15],
 
-  ["leftShoulder", "leftHip"],
-  ["rightShoulder", "rightHip"],
+    [12, 14],
+    [14, 16],
 
-  ["leftHip", "rightHip"],
+    [11, 23],
+    [12, 24],
 
-  ["leftHip", "leftKnee"],
-  ["leftKnee", "leftAnkle"],
-  ["leftAnkle", "leftHeel"],
-  ["leftHeel", "leftFoot"],
+    [23, 24],
 
-  ["rightHip", "rightKnee"],
-  ["rightKnee", "rightAnkle"],
-  ["rightAnkle", "rightHeel"],
-  ["rightHeel", "rightFoot"]
+    [23, 25],
+    [25, 27],
 
-];
+    [24, 26],
+    [26, 28],
 
+    [27, 29],
+    [29, 31],
 
-/* =========================================================
-   04. STATE
-========================================================= */
+    [28, 30],
+    [30, 32]
 
-const PoseManager = {
+  ];
 
-  initialized: false,
 
-  enabled: true,
+  /* =====================================================
+     ELEMENTS
+  ===================================================== */
 
-  processing: false,
+  function refreshElements() {
 
-  detector: null,
-
-  detectorReady: false,
-
-  lastAnalysisTime: 0,
-
-  landmarks: null,
-
-  angles: {},
-
-  symmetry: null,
-
-  confidence: null,
-
-  frameNumber: 0,
-
-  history: [],
-
-  source: null,
-
-  latestResult: null
-
-};
-
-
-/* =========================================================
-   05. INITIALIZE
-========================================================= */
-
-function initPose() {
-
-  if (PoseManager.initialized) {
-    return;
-  }
-
-
-  PoseManager.initialized = true;
-
-
-  bindPoseEvents();
-
-
-  console.log(
-    "[POSE] Pose analysis module ready"
-  );
-
-}
-
-
-/* =========================================================
-   06. EVENTS
-========================================================= */
-
-function bindPoseEvents() {
-
-  /*
-     실시간 카메라
-  */
-
-  document.addEventListener(
-    "camera:frame",
-    event => {
-
-      handlePoseFrame(
-        event.detail,
-        "camera"
+    video =
+      document.querySelector(
+        "[data-analysis-video]"
       );
 
-    }
-  );
 
-
-  /*
-     업로드 영상
-  */
-
-  document.addEventListener(
-    "video:frame",
-    event => {
-
-      handlePoseFrame(
-        event.detail,
-        "video"
+    canvas =
+      document.querySelector(
+        "[data-skeleton-canvas]"
       );
 
-    }
-  );
 
+    if (canvas) {
 
-  /*
-     외부 detector가 결과를 보내는 방식도 지원
-  */
-
-  document.addEventListener(
-    "pose:landmarks",
-    event => {
-
-      if (
-        event.detail?.landmarks
-      ) {
-
-        processPoseLandmarks(
-          event.detail.landmarks,
-          event.detail
+      ctx =
+        canvas.getContext(
+          "2d"
         );
 
-      }
-
     }
-  );
-
-}
-
-
-/* =========================================================
-   07. SET DETECTOR
-
-   MediaPipe 등 실제 detector를
-   나중에 연결하기 위한 함수
-========================================================= */
-
-function setPoseDetector(detector) {
-
-  PoseManager.detector =
-    detector || null;
-
-
-  PoseManager.detectorReady =
-    Boolean(detector);
-
-
-  updatePoseStatus(
-    PoseManager.detectorReady
-      ? "READY"
-      : "NO MODEL"
-  );
-
-}
-
-
-/* =========================================================
-   08. FRAME HANDLER
-========================================================= */
-
-async function handlePoseFrame(
-  frameData,
-  source
-) {
-
-  if (
-    !PoseManager.enabled ||
-    PoseManager.processing
-  ) {
-    return;
-  }
-
-
-  const now =
-    performance.now();
-
-
-  if (
-    now -
-    PoseManager.lastAnalysisTime <
-    POSE_CONFIG.analysisInterval
-  ) {
-
-    return;
 
   }
 
 
-  PoseManager.lastAnalysisTime =
-    now;
+  /* =====================================================
+     CANVAS SIZE
+  ===================================================== */
 
-
-  const media =
-    frameData?.video;
-
-
-  if (!media) {
-    return;
-  }
-
-
-  PoseManager.source =
-    source;
-
-
-  /*
-     detector가 아직 없으면
-     가짜 분석값을 생성하지 않는다.
-  */
-
-  if (
-    !PoseManager.detector
-  ) {
-
-    updatePoseStatus(
-      "MODEL REQUIRED"
-    );
-
-    return;
-
-  }
-
-
-  PoseManager.processing =
-    true;
-
-
-  try {
-
-    const result =
-      await runPoseDetector(
-        media,
-        frameData
-      );
-
+  function resizeCanvas() {
 
     if (
-      result?.landmarks
+      !video ||
+      !canvas
     ) {
 
-      processPoseLandmarks(
-        result.landmarks,
-        {
-          source,
-          media,
-          frameData,
-          rawResult: result
-        }
-      );
+      return;
+
+    }
+
+
+    const width =
+      video.videoWidth ||
+      1280;
+
+
+    const height =
+      video.videoHeight ||
+      720;
+
+
+    if (
+      canvas.width !== width
+    ) {
+
+      canvas.width =
+        width;
+
+    }
+
+
+    if (
+      canvas.height !== height
+    ) {
+
+      canvas.height =
+        height;
 
     }
 
   }
 
-  catch (error) {
 
-    console.error(
-      "[POSE] 분석 오류:",
-      error
-    );
+  /* =====================================================
+     ANGLE
+  ===================================================== */
 
-
-    updatePoseStatus(
-      "ERROR"
-    );
-
-  }
-
-  finally {
-
-    PoseManager.processing =
-      false;
-
-  }
-
-}
-
-
-/* =========================================================
-   09. RUN DETECTOR
-
-   여러 detector 형태에 대응
-========================================================= */
-
-async function runPoseDetector(
-  media,
-  frameData
-) {
-
-  const detector =
-    PoseManager.detector;
-
-
-  if (!detector) {
-    return null;
-  }
-
-
-  /*
-     Custom function
-  */
-
-  if (
-    typeof detector ===
-    "function"
+  function calculateAngle(
+    pointA,
+    pointB,
+    pointC
   ) {
-
-    return await detector(
-      media,
-      frameData
-    );
-
-  }
-
-
-  /*
-     detectForVideo 스타일
-  */
-
-  if (
-    typeof detector.detectForVideo ===
-    "function"
-  ) {
-
-    const result =
-      detector.detectForVideo(
-        media,
-        performance.now()
-      );
-
-
-    return normalizeDetectorResult(
-      result
-    );
-
-  }
-
-
-  /*
-     estimatePoses 스타일
-  */
-
-  if (
-    typeof detector.estimatePoses ===
-    "function"
-  ) {
-
-    const poses =
-      await detector.estimatePoses(
-        media
-      );
-
 
     if (
-      !poses ||
-      poses.length === 0
+      !pointA ||
+      !pointB ||
+      !pointC
     ) {
 
       return null;
@@ -489,2275 +217,1241 @@ async function runPoseDetector(
     }
 
 
-    return normalizeDetectorResult(
-      poses[0]
-    );
+    const radians =
+      Math.atan2(
+        pointC.y - pointB.y,
+        pointC.x - pointB.x
+      ) -
 
-  }
-
-
-  /*
-     detect 스타일
-  */
-
-  if (
-    typeof detector.detect ===
-    "function"
-  ) {
-
-    const result =
-      await detector.detect(
-        media
+      Math.atan2(
+        pointA.y - pointB.y,
+        pointA.x - pointB.x
       );
 
 
-    return normalizeDetectorResult(
-      result
+    let angle =
+      Math.abs(
+        radians *
+        180 /
+        Math.PI
+      );
+
+
+    if (
+      angle > 180
+    ) {
+
+      angle =
+        360 - angle;
+
+    }
+
+
+    return Number(
+      angle.toFixed(1)
     );
 
   }
 
 
-  return null;
+  /* =====================================================
+     LANDMARK VISIBILITY
+  ===================================================== */
 
-}
-
-
-/* =========================================================
-   10. NORMALIZE DETECTOR RESULT
-========================================================= */
-
-function normalizeDetectorResult(
-  result
-) {
-
-  if (!result) {
-    return null;
-  }
-
-
-  /*
-     이미 우리가 원하는 구조
-  */
-
-  if (
-    Array.isArray(
-      result.landmarks
-    ) &&
-    typeof result.landmarks[0]?.x ===
-      "number"
+  function visible(
+    point,
+    threshold = 0.45
   ) {
 
-    return {
-      ...result,
-      landmarks:
-        result.landmarks
-    };
+    if (!point) {
+
+      return false;
+
+    }
+
+
+    if (
+      point.visibility === undefined
+    ) {
+
+      return true;
+
+    }
+
+
+    return (
+      point.visibility >= threshold
+    );
 
   }
 
 
-  /*
-     MediaPipe Tasks:
-     landmarks = [[...]]
-  */
+  /* =====================================================
+     DRAW LINE
+  ===================================================== */
 
-  if (
-    Array.isArray(
-      result.landmarks
-    ) &&
-    Array.isArray(
-      result.landmarks[0]
-    )
+  function drawLine(
+    a,
+    b
   ) {
 
-    return {
-      ...result,
-      landmarks:
-        result.landmarks[0]
-    };
+    if (
+      !ctx ||
+      !canvas ||
+      !visible(a) ||
+      !visible(b)
+    ) {
+
+      return;
+
+    }
+
+
+    ctx.beginPath();
+
+
+    ctx.moveTo(
+      a.x * canvas.width,
+      a.y * canvas.height
+    );
+
+
+    ctx.lineTo(
+      b.x * canvas.width,
+      b.y * canvas.height
+    );
+
+
+    ctx.lineWidth =
+      Math.max(
+        2,
+        canvas.width / 500
+      );
+
+
+    ctx.strokeStyle =
+      "rgba(71, 213, 255, 0.95)";
+
+
+    ctx.stroke();
 
   }
 
 
-  /*
-     keypoints 기반 모델
-  */
+  /* =====================================================
+     DRAW POINT
+  ===================================================== */
 
-  if (
-    Array.isArray(
-      result.keypoints
-    )
+  function drawPoint(
+    point
   ) {
 
-    return {
-      ...result,
-      landmarks:
-        convertKeypointsToLandmarks(
-          result.keypoints
+    if (
+      !ctx ||
+      !canvas ||
+      !visible(point)
+    ) {
+
+      return;
+
+    }
+
+
+    const x =
+      point.x *
+      canvas.width;
+
+
+    const y =
+      point.y *
+      canvas.height;
+
+
+    const radius =
+      Math.max(
+        3,
+        canvas.width / 300
+      );
+
+
+    ctx.beginPath();
+
+
+    ctx.arc(
+      x,
+      y,
+      radius,
+      0,
+      Math.PI * 2
+    );
+
+
+    ctx.fillStyle =
+      "#ffffff";
+
+
+    ctx.fill();
+
+
+    ctx.lineWidth =
+      2;
+
+
+    ctx.strokeStyle =
+      "#00d8ff";
+
+
+    ctx.stroke();
+
+  }
+
+
+  /* =====================================================
+     DRAW ANGLE LABEL
+  ===================================================== */
+
+  function drawAngleLabel(
+    point,
+    angle
+  ) {
+
+    if (
+      !ctx ||
+      !canvas ||
+      !point ||
+      angle === null
+    ) {
+
+      return;
+
+    }
+
+
+    const x =
+      point.x *
+      canvas.width;
+
+
+    const y =
+      point.y *
+      canvas.height;
+
+
+    ctx.font =
+      `${Math.max(
+        14,
+        canvas.width / 70
+      )}px Arial`;
+
+
+    ctx.fillStyle =
+      "#ffffff";
+
+
+    ctx.strokeStyle =
+      "rgba(0,0,0,0.85)";
+
+
+    ctx.lineWidth =
+      4;
+
+
+    const text =
+      `${angle}°`;
+
+
+    ctx.strokeText(
+      text,
+      x + 10,
+      y - 10
+    );
+
+
+    ctx.fillText(
+      text,
+      x + 10,
+      y - 10
+    );
+
+  }
+
+
+  /* =====================================================
+     ANGLE ANALYSIS
+  ===================================================== */
+
+  function analyzeAngles(
+    landmarks
+  ) {
+
+    if (
+      !landmarks ||
+      landmarks.length < 33
+    ) {
+
+      return {};
+
+    }
+
+
+    const angles = {
+
+
+      leftElbow:
+
+        calculateAngle(
+
+          landmarks[
+            LM.LEFT_SHOULDER
+          ],
+
+          landmarks[
+            LM.LEFT_ELBOW
+          ],
+
+          landmarks[
+            LM.LEFT_WRIST
+          ]
+
+        ),
+
+
+      rightElbow:
+
+        calculateAngle(
+
+          landmarks[
+            LM.RIGHT_SHOULDER
+          ],
+
+          landmarks[
+            LM.RIGHT_ELBOW
+          ],
+
+          landmarks[
+            LM.RIGHT_WRIST
+          ]
+
+        ),
+
+
+      leftShoulder:
+
+        calculateAngle(
+
+          landmarks[
+            LM.LEFT_ELBOW
+          ],
+
+          landmarks[
+            LM.LEFT_SHOULDER
+          ],
+
+          landmarks[
+            LM.LEFT_HIP
+          ]
+
+        ),
+
+
+      rightShoulder:
+
+        calculateAngle(
+
+          landmarks[
+            LM.RIGHT_ELBOW
+          ],
+
+          landmarks[
+            LM.RIGHT_SHOULDER
+          ],
+
+          landmarks[
+            LM.RIGHT_HIP
+          ]
+
+        ),
+
+
+      leftHip:
+
+        calculateAngle(
+
+          landmarks[
+            LM.LEFT_SHOULDER
+          ],
+
+          landmarks[
+            LM.LEFT_HIP
+          ],
+
+          landmarks[
+            LM.LEFT_KNEE
+          ]
+
+        ),
+
+
+      rightHip:
+
+        calculateAngle(
+
+          landmarks[
+            LM.RIGHT_SHOULDER
+          ],
+
+          landmarks[
+            LM.RIGHT_HIP
+          ],
+
+          landmarks[
+            LM.RIGHT_KNEE
+          ]
+
+        ),
+
+
+      leftKnee:
+
+        calculateAngle(
+
+          landmarks[
+            LM.LEFT_HIP
+          ],
+
+          landmarks[
+            LM.LEFT_KNEE
+          ],
+
+          landmarks[
+            LM.LEFT_ANKLE
+          ]
+
+        ),
+
+
+      rightKnee:
+
+        calculateAngle(
+
+          landmarks[
+            LM.RIGHT_HIP
+          ],
+
+          landmarks[
+            LM.RIGHT_KNEE
+          ],
+
+          landmarks[
+            LM.RIGHT_ANKLE
+          ]
+
+        ),
+
+
+      leftAnkle:
+
+        calculateAngle(
+
+          landmarks[
+            LM.LEFT_KNEE
+          ],
+
+          landmarks[
+            LM.LEFT_ANKLE
+          ],
+
+          landmarks[
+            LM.LEFT_FOOT
+          ]
+
+        ),
+
+
+      rightAnkle:
+
+        calculateAngle(
+
+          landmarks[
+            LM.RIGHT_KNEE
+          ],
+
+          landmarks[
+            LM.RIGHT_ANKLE
+          ],
+
+          landmarks[
+            LM.RIGHT_FOOT
+          ]
+
         )
+
     };
+
+
+    return angles;
 
   }
 
 
-  return null;
+  /* =====================================================
+     SYMMETRY
+  ===================================================== */
 
-}
+  function difference(
+    a,
+    b
+  ) {
 
+    if (
+      a === null ||
+      b === null ||
+      a === undefined ||
+      b === undefined
+    ) {
 
-/* =========================================================
-   11. KEYPOINT CONVERSION
-========================================================= */
+      return null;
 
-function convertKeypointsToLandmarks(
-  keypoints
-) {
-
-  /*
-     모델별 landmark 구조가 다를 수 있으므로
-     이름이 있는 keypoint를 우선 사용
-  */
-
-  const result =
-    new Array(33)
-      .fill(null);
+    }
 
 
-  const nameMap = {
+    return Math.abs(
+      a - b
+    );
 
-    nose:
-      "nose",
+  }
 
-    left_shoulder:
-      "leftShoulder",
 
-    right_shoulder:
-      "rightShoulder",
+  function calculateSymmetry(
+    angles
+  ) {
 
-    left_elbow:
-      "leftElbow",
+    const values = [
 
-    right_elbow:
-      "rightElbow",
+      difference(
+        angles.leftElbow,
+        angles.rightElbow
+      ),
 
-    left_wrist:
-      "leftWrist",
+      difference(
+        angles.leftShoulder,
+        angles.rightShoulder
+      ),
 
-    right_wrist:
-      "rightWrist",
+      difference(
+        angles.leftHip,
+        angles.rightHip
+      ),
 
-    left_hip:
-      "leftHip",
+      difference(
+        angles.leftKnee,
+        angles.rightKnee
+      ),
 
-    right_hip:
-      "rightHip",
+      difference(
+        angles.leftAnkle,
+        angles.rightAnkle
+      )
 
-    left_knee:
-      "leftKnee",
+    ].filter(
+      value =>
+        value !== null
+    );
 
-    right_knee:
-      "rightKnee",
 
-    left_ankle:
-      "leftAnkle",
+    if (
+      !values.length
+    ) {
 
-    right_ankle:
-      "rightAnkle"
+      return null;
+
+    }
+
+
+    const averageDifference =
+      values.reduce(
+        (sum, value) =>
+          sum + value,
+        0
+      ) /
+      values.length;
+
+
+    const score =
+      Math.max(
+        0,
+        100 -
+        averageDifference * 2
+      );
+
+
+    return Number(
+      score.toFixed(1)
+    );
+
+  }
+
+
+  /* =====================================================
+     DRAW SKELETON
+  ===================================================== */
+
+  function drawSkeleton(
+    landmarks
+  ) {
+
+    if (
+      !ctx ||
+      !canvas ||
+      !landmarks
+    ) {
+
+      return;
+
+    }
+
+
+    ctx.clearRect(
+      0,
+      0,
+      canvas.width,
+      canvas.height
+    );
+
+
+    CONNECTIONS.forEach(
+      connection => {
+
+        const [
+          start,
+          end
+        ] = connection;
+
+
+        drawLine(
+
+          landmarks[start],
+
+          landmarks[end]
+
+        );
+
+      }
+    );
+
+
+    landmarks.forEach(
+      point => {
+
+        drawPoint(
+          point
+        );
+
+      }
+    );
+
+  }
+
+
+  /* =====================================================
+     DRAW ANGLES
+  ===================================================== */
+
+  function drawAngles(
+    landmarks,
+    angles
+  ) {
+
+    drawAngleLabel(
+
+      landmarks[
+        LM.LEFT_ELBOW
+      ],
+
+      angles.leftElbow
+
+    );
+
+
+    drawAngleLabel(
+
+      landmarks[
+        LM.RIGHT_ELBOW
+      ],
+
+      angles.rightElbow
+
+    );
+
+
+    drawAngleLabel(
+
+      landmarks[
+        LM.LEFT_HIP
+      ],
+
+      angles.leftHip
+
+    );
+
+
+    drawAngleLabel(
+
+      landmarks[
+        LM.RIGHT_HIP
+      ],
+
+      angles.rightHip
+
+    );
+
+
+    drawAngleLabel(
+
+      landmarks[
+        LM.LEFT_KNEE
+      ],
+
+      angles.leftKnee
+
+    );
+
+
+    drawAngleLabel(
+
+      landmarks[
+        LM.RIGHT_KNEE
+      ],
+
+      angles.rightKnee
+
+    );
+
+  }
+
+
+  /* =====================================================
+     UPDATE UI
+  ===================================================== */
+
+  const ANGLE_LABELS = {
+
+    leftShoulder:
+      "왼쪽 어깨",
+
+    rightShoulder:
+      "오른쪽 어깨",
+
+    leftElbow:
+      "왼쪽 팔꿈치",
+
+    rightElbow:
+      "오른쪽 팔꿈치",
+
+    leftHip:
+      "왼쪽 고관절",
+
+    rightHip:
+      "오른쪽 고관절",
+
+    leftKnee:
+      "왼쪽 무릎",
+
+    rightKnee:
+      "오른쪽 무릎",
+
+    leftAnkle:
+      "왼쪽 발목",
+
+    rightAnkle:
+      "오른쪽 발목"
 
   };
 
 
-  keypoints.forEach(
-    point => {
+  function updateAngleUI(
+    angles
+  ) {
 
-      const mapped =
-        nameMap[
-          point.name
-        ];
-
-
-      if (!mapped) {
-        return;
-      }
+    const container =
+      document.querySelector(
+        "[data-sport-angles]"
+      );
 
 
-      const index =
-        POSE_LANDMARKS[
-          mapped
-        ];
+    if (!container) {
 
-
-      result[index] = {
-
-        x:
-          point.x,
-
-        y:
-          point.y,
-
-        z:
-          point.z || 0,
-
-        visibility:
-          point.score ?? 1
-
-      };
+      return;
 
     }
-  );
 
 
-  return result;
+    container.innerHTML =
+      "";
 
-}
+
+    Object.entries(
+      angles
+    ).forEach(
+      ([key, value]) => {
+
+        const item =
+          document.createElement(
+            "div"
+          );
 
 
-/* =========================================================
-   12. PROCESS LANDMARKS
-========================================================= */
+        item.className =
+          "angle-item";
 
-function processPoseLandmarks(
-  landmarks,
-  metadata = {}
-) {
 
-  if (
-    !Array.isArray(
-      landmarks
-    )
-  ) {
-    return null;
+        const label =
+          document.createElement(
+            "span"
+          );
+
+
+        label.textContent =
+          ANGLE_LABELS[key] ||
+          key;
+
+
+        const strong =
+          document.createElement(
+            "strong"
+          );
+
+
+        strong.textContent =
+          value === null
+            ? "--"
+            : `${value}°`;
+
+
+        item.append(
+          label,
+          strong
+        );
+
+
+        container.appendChild(
+          item
+        );
+
+      }
+    );
+
   }
 
 
-  const normalized =
-    normalizeLandmarks(
+  /* =====================================================
+     PROCESS LANDMARKS
+
+     실제 AI 모델에서 landmarks가 들어오면
+     이 함수 하나로 전체 분석 실행
+  ===================================================== */
+
+  function processLandmarks(
+    landmarks
+  ) {
+
+    if (
+      !landmarks ||
+      landmarks.length < 33
+    ) {
+
+      state.detected =
+        false;
+
+      return;
+
+    }
+
+
+    resizeCanvas();
+
+
+    lastLandmarks =
+      landmarks;
+
+
+    const angles =
+      analyzeAngles(
+        landmarks
+      );
+
+
+    const symmetry =
+      calculateSymmetry(
+        angles
+      );
+
+
+    state.detected =
+      true;
+
+    state.landmarks =
+      landmarks;
+
+    state.angles =
+      angles;
+
+    state.symmetry =
+      symmetry;
+
+
+    drawSkeleton(
+      landmarks
+    );
+
+
+    drawAngles(
       landmarks,
-      metadata.media
-    );
-
-
-  PoseManager.landmarks =
-    normalized;
-
-
-  const confidence =
-    calculatePoseConfidence(
-      normalized
-    );
-
-
-  PoseManager.confidence =
-    confidence;
-
-
-  const angles =
-    calculateAllPoseAngles(
-      normalized
-    );
-
-
-  PoseManager.angles =
-    angles;
-
-
-  const symmetry =
-    calculatePoseSymmetry(
       angles
     );
 
 
-  PoseManager.symmetry =
-    symmetry;
+    updateAngleUI(
+      angles
+    );
 
 
-  PoseManager.frameNumber++;
+    /*
+      다른 모듈에서도 사용 가능
+    */
+
+    window.SeolcheonPoseData = {
+
+      landmarks,
+
+      angles,
+
+      symmetry,
+
+      timestamp:
+        Date.now()
+
+    };
 
 
-  const result = {
+    document.dispatchEvent(
 
-    frame:
-      PoseManager.frameNumber,
+      new CustomEvent(
+        "seolcheon:pose-update",
+        {
+          detail:
+            window.SeolcheonPoseData
+        }
+      )
 
-    timestamp:
-      performance.now(),
+    );
 
-    source:
-      metadata.source ||
-      PoseManager.source,
-
-    videoTime:
-      metadata.frameData
-        ?.currentTime ??
-      null,
-
-    confidence,
-
-    landmarks:
-      normalized,
-
-    angles,
-
-    symmetry
-
-  };
+  }
 
 
-  PoseManager.latestResult =
-    result;
+  /* =====================================================
+     CLEAR
+  ===================================================== */
+
+  function clear() {
+
+    if (
+      ctx &&
+      canvas
+    ) {
+
+      ctx.clearRect(
+        0,
+        0,
+        canvas.width,
+        canvas.height
+      );
+
+    }
 
 
-  addPoseHistory(
-    result
-  );
+    state.detected =
+      false;
+
+    state.angles =
+      {};
+
+    state.symmetry =
+      null;
+
+    state.landmarks =
+      null;
 
 
-  drawPoseOverlay(
-    result
-  );
+    lastLandmarks =
+      null;
+
+  }
 
 
-  updatePoseUI(
-    result
-  );
+  /* =====================================================
+     START / STOP
+  ===================================================== */
+
+  function start() {
+
+    refreshElements();
+
+    resizeCanvas();
 
 
-  /*
-     다음 sports-analysis.js에서
-     이 이벤트를 받는다.
-  */
-
-  document.dispatchEvent(
-    new CustomEvent(
-      "pose:result",
-      {
-        detail:
-          result
-      }
-    )
-  );
+    running =
+      true;
 
 
-  return result;
+    console.log(
+      "[POSE] ANALYSIS READY"
+    );
 
-}
-
-
-/* =========================================================
-   13. NORMALIZE LANDMARKS
-========================================================= */
-
-function normalizeLandmarks(
-  landmarks,
-  media
-) {
-
-  const width =
-    media?.videoWidth ||
-    media?.width ||
-    1;
+  }
 
 
-  const height =
-    media?.videoHeight ||
-    media?.height ||
-    1;
+  function stop() {
+
+    running =
+      false;
 
 
-  return landmarks.map(
-    point => {
+    if (
+      animationId
+    ) {
 
-      if (!point) {
-        return null;
-      }
-
-
-      let x =
-        Number(
-          point.x
-        );
+      cancelAnimationFrame(
+        animationId
+      );
 
 
-      let y =
-        Number(
-          point.y
-        );
+      animationId =
+        null;
+
+    }
 
 
-      /*
-         pixel 좌표 모델이면
-         0~1 범위로 변환
-      */
+    console.log(
+      "[POSE] STOPPED"
+    );
+
+  }
+
+
+  /* =====================================================
+     SNAPSHOT IMAGE
+  ===================================================== */
+
+  function getPoseImage() {
+
+    if (!canvas) {
+
+      return null;
+
+    }
+
+
+    try {
+
+      return canvas.toDataURL(
+        "image/png"
+      );
+
+    }
+
+    catch (error) {
+
+      console.warn(
+        "[POSE IMAGE]",
+        error
+      );
+
+
+      return null;
+
+    }
+
+  }
+
+
+  /* =====================================================
+     REPORT STORAGE
+  ===================================================== */
+
+  function savePoseForReport() {
+
+    const image =
+      getPoseImage();
+
+
+    if (!image) {
+
+      return;
+
+    }
+
+
+    try {
+
+      sessionStorage.setItem(
+        "seolcheon_pose_image",
+        image
+      );
+
+
+      sessionStorage.setItem(
+        "seolcheon_pose_angles",
+        JSON.stringify(
+          state.angles
+        )
+      );
+
+    }
+
+    catch (error) {
+
+      console.warn(
+        "[POSE REPORT STORAGE]",
+        error
+      );
+
+    }
+
+  }
+
+
+  /* =====================================================
+     SNAPSHOT 연동
+  ===================================================== */
+
+  document.addEventListener(
+    "click",
+    event => {
 
       if (
-        x > 1 ||
-        y > 1
+        event.target.closest(
+          "[data-analysis-snapshot]"
+        )
       ) {
 
-        x =
-          x / width;
-
-        y =
-          y / height;
+        setTimeout(
+          savePoseForReport,
+          50
+        );
 
       }
 
+    }
+  );
+
+
+  /* =====================================================
+     INIT
+  ===================================================== */
+
+  function init() {
+
+    refreshElements();
+
+
+    if (video) {
+
+      video.addEventListener(
+        "loadedmetadata",
+        resizeCanvas
+      );
+
+
+      video.addEventListener(
+        "loadeddata",
+        resizeCanvas
+      );
+
+    }
+
+
+    window.addEventListener(
+      "resize",
+      resizeCanvas
+    );
+
+
+    console.log(
+      "[POSE] MODULE READY"
+    );
+
+  }
+
+
+  if (
+    document.readyState ===
+    "loading"
+  ) {
+
+    document.addEventListener(
+      "DOMContentLoaded",
+      init
+    );
+
+  }
+
+  else {
+
+    init();
+
+  }
+
+
+  /* =====================================================
+     PUBLIC API
+  ===================================================== */
+
+  return {
+
+    start,
+
+    stop,
+
+    clear,
+
+    processLandmarks,
+
+    calculateAngle,
+
+    analyzeAngles,
+
+    calculateSymmetry,
+
+    getPoseImage,
+
+    savePoseForReport,
+
+
+    getState() {
 
       return {
 
-        x,
+        running,
 
-        y,
+        detected:
+          state.detected,
 
-        z:
-          Number(
-            point.z || 0
-          ),
+        angles:
+          {
+            ...state.angles
+          },
 
-        visibility:
-          Number(
-            point.visibility ??
-            point.score ??
-            1
-          )
+        symmetry:
+          state.symmetry,
+
+        landmarks:
+          state.landmarks
 
       };
 
     }
-  );
-
-}
-
-
-/* =========================================================
-   14. GET LANDMARK
-========================================================= */
-
-function getPosePoint(
-  landmarks,
-  name
-) {
-
-  const index =
-    POSE_LANDMARKS[
-      name
-    ];
-
-
-  if (
-    index === undefined
-  ) {
-
-    return null;
-  }
-
-
-  return (
-    landmarks[index] ||
-    null
-  );
-
-}
-
-
-/* =========================================================
-   15. POINT VALID
-========================================================= */
-
-function isPosePointValid(
-  point
-) {
-
-  if (!point) {
-    return false;
-  }
-
-
-  if (
-    !Number.isFinite(point.x) ||
-    !Number.isFinite(point.y)
-  ) {
-
-    return false;
-  }
-
-
-  return (
-    (
-      point.visibility ??
-      1
-    ) >=
-    POSE_CONFIG.minimumConfidence
-  );
-
-}
-
-
-/* =========================================================
-   16. ANGLE BETWEEN 3 POINTS
-========================================================= */
-
-function calculateJointAngle(
-  pointA,
-  pointB,
-  pointC
-) {
-
-  if (
-    !isPosePointValid(pointA) ||
-    !isPosePointValid(pointB) ||
-    !isPosePointValid(pointC)
-  ) {
-
-    return null;
-  }
-
-
-  const vector1 = {
-
-    x:
-      pointA.x -
-      pointB.x,
-
-    y:
-      pointA.y -
-      pointB.y
 
   };
 
-
-  const vector2 = {
-
-    x:
-      pointC.x -
-      pointB.x,
-
-    y:
-      pointC.y -
-      pointB.y
-
-  };
-
-
-  const dot =
-    vector1.x *
-    vector2.x +
-    vector1.y *
-    vector2.y;
-
-
-  const magnitude1 =
-    Math.hypot(
-      vector1.x,
-      vector1.y
-    );
-
-
-  const magnitude2 =
-    Math.hypot(
-      vector2.x,
-      vector2.y
-    );
-
-
-  if (
-    magnitude1 === 0 ||
-    magnitude2 === 0
-  ) {
-
-    return null;
-  }
-
-
-  let cosine =
-    dot /
-    (
-      magnitude1 *
-      magnitude2
-    );
-
-
-  cosine =
-    Math.max(
-      -1,
-      Math.min(
-        1,
-        cosine
-      )
-    );
-
-
-  const radians =
-    Math.acos(
-      cosine
-    );
-
-
-  return Number(
-    (
-      radians *
-      180 /
-      Math.PI
-    ).toFixed(1)
-  );
-
-}
-
-
-/* =========================================================
-   17. ALL ANGLES
-========================================================= */
-
-function calculateAllPoseAngles(
-  landmarks
-) {
-
-  const p =
-    name =>
-      getPosePoint(
-        landmarks,
-        name
-      );
-
-
-  return {
-
-    leftShoulder:
-      calculateJointAngle(
-        p("leftElbow"),
-        p("leftShoulder"),
-        p("leftHip")
-      ),
-
-    rightShoulder:
-      calculateJointAngle(
-        p("rightElbow"),
-        p("rightShoulder"),
-        p("rightHip")
-      ),
-
-
-    leftElbow:
-      calculateJointAngle(
-        p("leftShoulder"),
-        p("leftElbow"),
-        p("leftWrist")
-      ),
-
-    rightElbow:
-      calculateJointAngle(
-        p("rightShoulder"),
-        p("rightElbow"),
-        p("rightWrist")
-      ),
-
-
-    leftHip:
-      calculateJointAngle(
-        p("leftShoulder"),
-        p("leftHip"),
-        p("leftKnee")
-      ),
-
-    rightHip:
-      calculateJointAngle(
-        p("rightShoulder"),
-        p("rightHip"),
-        p("rightKnee")
-      ),
-
-
-    leftKnee:
-      calculateJointAngle(
-        p("leftHip"),
-        p("leftKnee"),
-        p("leftAnkle")
-      ),
-
-    rightKnee:
-      calculateJointAngle(
-        p("rightHip"),
-        p("rightKnee"),
-        p("rightAnkle")
-      ),
-
-
-    leftAnkle:
-      calculateJointAngle(
-        p("leftKnee"),
-        p("leftAnkle"),
-        p("leftFoot")
-      ),
-
-    rightAnkle:
-      calculateJointAngle(
-        p("rightKnee"),
-        p("rightAnkle"),
-        p("rightFoot")
-      ),
-
-
-    trunk:
-      calculateTrunkAngle(
-        landmarks
-      )
-
-  };
-
-}
-
-
-/* =========================================================
-   18. TRUNK ANGLE
-
-   수직축 기준 몸통 기울기
-========================================================= */
-
-function calculateTrunkAngle(
-  landmarks
-) {
-
-  const leftShoulder =
-    getPosePoint(
-      landmarks,
-      "leftShoulder"
-    );
-
-
-  const rightShoulder =
-    getPosePoint(
-      landmarks,
-      "rightShoulder"
-    );
-
-
-  const leftHip =
-    getPosePoint(
-      landmarks,
-      "leftHip"
-    );
-
-
-  const rightHip =
-    getPosePoint(
-      landmarks,
-      "rightHip"
-    );
-
-
-  if (
-    !isPosePointValid(leftShoulder) ||
-    !isPosePointValid(rightShoulder) ||
-    !isPosePointValid(leftHip) ||
-    !isPosePointValid(rightHip)
-  ) {
-
-    return null;
-  }
-
-
-  const shoulder = {
-
-    x:
-      (
-        leftShoulder.x +
-        rightShoulder.x
-      ) / 2,
-
-    y:
-      (
-        leftShoulder.y +
-        rightShoulder.y
-      ) / 2
-
-  };
-
-
-  const hip = {
-
-    x:
-      (
-        leftHip.x +
-        rightHip.x
-      ) / 2,
-
-    y:
-      (
-        leftHip.y +
-        rightHip.y
-      ) / 2
-
-  };
-
-
-  const dx =
-    shoulder.x -
-    hip.x;
-
-
-  const dy =
-    hip.y -
-    shoulder.y;
-
-
-  const angle =
-    Math.atan2(
-      Math.abs(dx),
-      Math.abs(dy)
-    ) *
-    180 /
-    Math.PI;
-
-
-  return Number(
-    angle.toFixed(1)
-  );
-
-}
-
-
-/* =========================================================
-   19. POSE CONFIDENCE
-========================================================= */
-
-function calculatePoseConfidence(
-  landmarks
-) {
-
-  const valid =
-    landmarks.filter(
-      point =>
-        point &&
-        Number.isFinite(
-          point.visibility
-        )
-    );
-
-
-  if (
-    valid.length === 0
-  ) {
-
-    return null;
-  }
-
-
-  const average =
-    valid.reduce(
-      (
-        total,
-        point
-      ) =>
-        total +
-        point.visibility,
-      0
-    ) /
-    valid.length;
-
-
-  return Number(
-    (
-      average * 100
-    ).toFixed(1)
-  );
-
-}
-
-
-/* =========================================================
-   20. SYMMETRY
-========================================================= */
-
-function calculatePoseSymmetry(
-  angles
-) {
-
-  const pairs = [
-
-    [
-      angles.leftShoulder,
-      angles.rightShoulder
-    ],
-
-    [
-      angles.leftElbow,
-      angles.rightElbow
-    ],
-
-    [
-      angles.leftHip,
-      angles.rightHip
-    ],
-
-    [
-      angles.leftKnee,
-      angles.rightKnee
-    ],
-
-    [
-      angles.leftAnkle,
-      angles.rightAnkle
-    ]
-
-  ];
-
-
-  const differences = [];
-
-
-  pairs.forEach(
-    ([left, right]) => {
-
-      if (
-        Number.isFinite(left) &&
-        Number.isFinite(right)
-      ) {
-
-        differences.push(
-          Math.abs(
-            left -
-            right
-          )
-        );
-
-      }
-
-    }
-  );
-
-
-  if (
-    differences.length === 0
-  ) {
-
-    return null;
-  }
-
-
-  const averageDifference =
-    differences.reduce(
-      (a, b) =>
-        a + b,
-      0
-    ) /
-    differences.length;
-
-
-  /*
-     각도 차이가 커질수록
-     100점에서 감소.
-     진단 수치가 아닌 기술 비교용 지표.
-  */
-
-  const score =
-    Math.max(
-      0,
-      100 -
-      averageDifference * 2
-    );
-
-
-  return {
-
-    score:
-      Number(
-        score.toFixed(1)
-      ),
-
-    averageAngleDifference:
-      Number(
-        averageDifference
-          .toFixed(1)
-      )
-
-  };
-
-}
-
-
-/* =========================================================
-   21. HISTORY
-========================================================= */
-
-function addPoseHistory(
-  result
-) {
-
-  PoseManager.history.push(
-    result
-  );
-
-
-  if (
-    PoseManager.history.length >
-    POSE_CONFIG.historyLimit
-  ) {
-
-    PoseManager.history.splice(
-      0,
-      PoseManager.history.length -
-      POSE_CONFIG.historyLimit
-    );
-
-  }
-
-}
-
-
-/* =========================================================
-   22. FIND OVERLAY CANVAS
-========================================================= */
-
-function findPoseCanvas() {
-
-  return (
-
-    document.getElementById(
-      "pose-overlay"
-    ) ||
-
-    document.getElementById(
-      "pose-canvas"
-    ) ||
-
-    document.querySelector(
-      "[data-pose-canvas]"
-    )
-
-  );
-
-}
-
-
-/* =========================================================
-   23. DRAW OVERLAY
-========================================================= */
-
-function drawPoseOverlay(
-  result
-) {
-
-  const canvas =
-    findPoseCanvas();
-
-
-  if (!canvas) {
-    return;
-  }
-
-
-  const media =
-    getCurrentPoseMedia();
-
-
-  if (!media) {
-    return;
-  }
-
-
-  const width =
-    media.videoWidth ||
-    media.width ||
-    canvas.clientWidth ||
-    1280;
-
-
-  const height =
-    media.videoHeight ||
-    media.height ||
-    canvas.clientHeight ||
-    720;
-
-
-  if (
-    canvas.width !== width
-  ) {
-
-    canvas.width =
-      width;
-
-  }
-
-
-  if (
-    canvas.height !== height
-  ) {
-
-    canvas.height =
-      height;
-
-  }
-
-
-  const ctx =
-    canvas.getContext(
-      "2d"
-    );
-
-
-  if (!ctx) {
-    return;
-  }
-
-
-  ctx.clearRect(
-    0,
-    0,
-    width,
-    height
-  );
-
-
-  if (
-    POSE_CONFIG.drawSkeleton
-  ) {
-
-    drawPoseSkeleton(
-      ctx,
-      result.landmarks,
-      width,
-      height
-    );
-
-  }
-
-
-  if (
-    POSE_CONFIG.drawJoints
-  ) {
-
-    drawPoseJoints(
-      ctx,
-      result.landmarks,
-      width,
-      height
-    );
-
-  }
-
-
-  if (
-    POSE_CONFIG.drawAngles
-  ) {
-
-    drawPoseAngles(
-      ctx,
-      result,
-      width,
-      height
-    );
-
-  }
-
-}
-
-
-/* =========================================================
-   24. DRAW SKELETON
-========================================================= */
-
-function drawPoseSkeleton(
-  ctx,
-  landmarks,
-  width,
-  height
-) {
-
-  ctx.save();
-
-
-  ctx.lineWidth =
-    POSE_CONFIG.lineWidth;
-
-
-  ctx.strokeStyle =
-    "rgba(0, 240, 255, 0.95)";
-
-
-  POSE_CONNECTIONS.forEach(
-    ([nameA, nameB]) => {
-
-      const a =
-        getPosePoint(
-          landmarks,
-          nameA
-        );
-
-
-      const b =
-        getPosePoint(
-          landmarks,
-          nameB
-        );
-
-
-      if (
-        !isPosePointValid(a) ||
-        !isPosePointValid(b)
-      ) {
-
-        return;
-
-      }
-
-
-      ctx.beginPath();
-
-
-      ctx.moveTo(
-        a.x * width,
-        a.y * height
-      );
-
-
-      ctx.lineTo(
-        b.x * width,
-        b.y * height
-      );
-
-
-      ctx.stroke();
-
-    }
-  );
-
-
-  ctx.restore();
-
-}
-
-
-/* =========================================================
-   25. DRAW JOINTS
-========================================================= */
-
-function drawPoseJoints(
-  ctx,
-  landmarks,
-  width,
-  height
-) {
-
-  ctx.save();
-
-
-  ctx.fillStyle =
-    "rgba(255,255,255,0.98)";
-
-
-  landmarks.forEach(
-    point => {
-
-      if (
-        !isPosePointValid(point)
-      ) {
-        return;
-      }
-
-
-      ctx.beginPath();
-
-
-      ctx.arc(
-        point.x * width,
-        point.y * height,
-        POSE_CONFIG.jointRadius,
-        0,
-        Math.PI * 2
-      );
-
-
-      ctx.fill();
-
-    }
-  );
-
-
-  ctx.restore();
-
-}
-
-
-/* =========================================================
-   26. DRAW ANGLES
-========================================================= */
-
-function drawPoseAngles(
-  ctx,
-  result,
-  width,
-  height
-) {
-
-  const items = [
-
-    [
-      "leftKnee",
-      result.angles.leftKnee,
-      "L KNEE"
-    ],
-
-    [
-      "rightKnee",
-      result.angles.rightKnee,
-      "R KNEE"
-    ],
-
-    [
-      "leftHip",
-      result.angles.leftHip,
-      "L HIP"
-    ],
-
-    [
-      "rightHip",
-      result.angles.rightHip,
-      "R HIP"
-    ],
-
-    [
-      "leftElbow",
-      result.angles.leftElbow,
-      "L ELBOW"
-    ],
-
-    [
-      "rightElbow",
-      result.angles.rightElbow,
-      "R ELBOW"
-    ]
-
-  ];
-
-
-  ctx.save();
-
-
-  ctx.font =
-    "600 18px system-ui";
-
-
-  ctx.textBaseline =
-    "bottom";
-
-
-  items.forEach(
-    (
-      [
-        jointName,
-        angle,
-        label
-      ]
-    ) => {
-
-      if (
-        !Number.isFinite(angle)
-      ) {
-
-        return;
-
-      }
-
-
-      const point =
-        getPosePoint(
-          result.landmarks,
-          jointName
-        );
-
-
-      if (
-        !isPosePointValid(point)
-      ) {
-
-        return;
-
-      }
-
-
-      const x =
-        point.x * width +
-        12;
-
-
-      const y =
-        point.y * height -
-        8;
-
-
-      const text =
-        `${label} ${angle}°`;
-
-
-      const metrics =
-        ctx.measureText(
-          text
-        );
-
-
-      ctx.fillStyle =
-        "rgba(5,15,25,0.82)";
-
-
-      ctx.fillRect(
-        x - 5,
-        y - 21,
-        metrics.width + 10,
-        26
-      );
-
-
-      ctx.fillStyle =
-        "#ffffff";
-
-
-      ctx.fillText(
-        text,
-        x,
-        y
-      );
-
-    }
-  );
-
-
-  ctx.restore();
-
-}
-
-
-/* =========================================================
-   27. CURRENT MEDIA
-========================================================= */
-
-function getCurrentPoseMedia() {
-
-  if (
-    PoseManager.source ===
-      "camera"
-  ) {
-
-    return (
-      window.CameraManager
-        ?.video ||
-      null
-    );
-
-  }
-
-
-  if (
-    PoseManager.source ===
-      "video"
-  ) {
-
-    return (
-      window.VideoManager
-        ?.video ||
-      null
-    );
-
-  }
-
-
-  return null;
-
-}
-
-
-/* =========================================================
-   28. UPDATE UI
-========================================================= */
-
-function updatePoseUI(
-  result
-) {
-
-  setPoseText(
-    "pose-confidence",
-    result.confidence !== null
-      ? `${result.confidence}%`
-      : "--"
-  );
-
-
-  setPoseText(
-    "pose-symmetry",
-    result.symmetry
-      ? `${result.symmetry.score}`
-      : "--"
-  );
-
-
-  setPoseText(
-    "pose-left-knee",
-    formatPoseAngle(
-      result.angles.leftKnee
-    )
-  );
-
-
-  setPoseText(
-    "pose-right-knee",
-    formatPoseAngle(
-      result.angles.rightKnee
-    )
-  );
-
-
-  setPoseText(
-    "pose-left-hip",
-    formatPoseAngle(
-      result.angles.leftHip
-    )
-  );
-
-
-  setPoseText(
-    "pose-right-hip",
-    formatPoseAngle(
-      result.angles.rightHip
-    )
-  );
-
-
-  setPoseText(
-    "pose-trunk",
-    formatPoseAngle(
-      result.angles.trunk
-    )
-  );
-
-
-  updatePoseStatus(
-    "TRACKING"
-  );
-
-}
-
-
-/* =========================================================
-   29. SET UI TEXT
-========================================================= */
-
-function setPoseText(
-  id,
-  value
-) {
-
-  const element =
-    document.getElementById(
-      id
-    );
-
-
-  if (element) {
-
-    element.textContent =
-      value;
-
-  }
-
-}
-
-
-/* =========================================================
-   30. FORMAT ANGLE
-========================================================= */
-
-function formatPoseAngle(
-  value
-) {
-
-  return Number.isFinite(value)
-    ? `${value}°`
-    : "--";
-
-}
-
-
-/* =========================================================
-   31. STATUS
-========================================================= */
-
-function updatePoseStatus(
-  status
-) {
-
-  document
-    .querySelectorAll(
-      [
-        "#pose-status",
-        "[data-pose-status]"
-      ].join(",")
-    )
-    .forEach(
-      element => {
-
-        element.textContent =
-          status;
-
-
-        element.dataset.status =
-          status
-            .toLowerCase()
-            .replaceAll(
-              " ",
-              "-"
-            );
-
-      }
-    );
-
-}
-
-
-/* =========================================================
-   32. CAPTURE ANALYSIS SNAPSHOT
-
-   원본 영상 + 스켈레톤 + 각도를
-   하나의 이미지로 합친다.
-========================================================= */
-
-function capturePoseSnapshot(
-  options = {}
-) {
-
-  const media =
-    getCurrentPoseMedia();
-
-
-  const overlay =
-    findPoseCanvas();
-
-
-  if (
-    !media ||
-    !PoseManager.latestResult
-  ) {
-
-    return null;
-  }
-
-
-  const width =
-    media.videoWidth ||
-    overlay?.width ||
-    1280;
-
-
-  const height =
-    media.videoHeight ||
-    overlay?.height ||
-    720;
-
-
-  const canvas =
-    document.createElement(
-      "canvas"
-    );
-
-
-  canvas.width =
-    width;
-
-
-  canvas.height =
-    height;
-
-
-  const ctx =
-    canvas.getContext(
-      "2d"
-    );
-
-
-  /*
-     원본 프레임
-  */
-
-  try {
-
-    ctx.drawImage(
-      media,
-      0,
-      0,
-      width,
-      height
-    );
-
-  }
-
-  catch (error) {
-
-    console.warn(
-      "[POSE] 원본 프레임 캡처 실패",
-      error
-    );
-
-  }
-
-
-  /*
-     스켈레톤 + 각도
-  */
-
-  drawPoseSkeleton(
-    ctx,
-    PoseManager.latestResult.landmarks,
-    width,
-    height
-  );
-
-
-  drawPoseJoints(
-    ctx,
-    PoseManager.latestResult.landmarks,
-    width,
-    height
-  );
-
-
-  drawPoseAngles(
-    ctx,
-    PoseManager.latestResult,
-    width,
-    height
-  );
-
-
-  /*
-     상단 분석 정보
-  */
-
-  drawSnapshotHeader(
-    ctx,
-    width,
-    options
-  );
-
-
-  const image =
-    canvas.toDataURL(
-      "image/jpeg",
-      POSE_CONFIG.snapshotQuality
-    );
-
-
-  const snapshot = {
-
-    id:
-      "pose_snapshot_" +
-      Date.now(),
-
-    type:
-      options.type ||
-      "pose",
-
-    sportId:
-      options.sportId ||
-      null,
-
-    frame:
-      PoseManager.latestResult.frame,
-
-    videoTime:
-      PoseManager.latestResult.videoTime,
-
-    angles: {
-      ...PoseManager.latestResult.angles
-    },
-
-    symmetry:
-      PoseManager.latestResult.symmetry,
-
-    confidence:
-      PoseManager.latestResult.confidence,
-
-    width,
-
-    height,
-
-    image,
-
-    createdAt:
-      new Date()
-        .toISOString()
-
-  };
-
-
-  document.dispatchEvent(
-    new CustomEvent(
-      "pose:snapshot",
-      {
-        detail:
-          snapshot
-      }
-    )
-  );
-
-
-  return snapshot;
-
-}
-
-
-/* =========================================================
-   33. SNAPSHOT HEADER
-========================================================= */
-
-function drawSnapshotHeader(
-  ctx,
-  width,
-  options
-) {
-
-  const sport =
-    options.sportName ||
-    "SPORT PERFORMANCE ANALYSIS";
-
-
-  ctx.save();
-
-
-  ctx.fillStyle =
-    "rgba(5,15,25,0.82)";
-
-
-  ctx.fillRect(
-    0,
-    0,
-    width,
-    54
-  );
-
-
-  ctx.fillStyle =
-    "#ffffff";
-
-
-  ctx.font =
-    "700 18px system-ui";
-
-
-  ctx.fillText(
-    "SEOLCHEON SPORTS SCIENCE",
-    20,
-    23
-  );
-
-
-  ctx.font =
-    "500 14px system-ui";
-
-
-  ctx.fillText(
-    sport,
-    20,
-    44
-  );
-
-
-  ctx.restore();
-
-}
-
-
-/* =========================================================
-   34. ANGLE SNAPSHOT
-
-   리포트에 들어가는
-   '각도 사진'
-========================================================= */
-
-function captureAngleSnapshot(
-  sportId = null,
-  sportName = null
-) {
-
-  return capturePoseSnapshot(
-    {
-      type:
-        "angle",
-
-      sportId,
-
-      sportName
-    }
-  );
-
-}
-
-
-/* =========================================================
-   35. KEY FRAME
-========================================================= */
-
-function capturePoseKeyFrame(
-  label = "KEY FRAME"
-) {
-
-  const snapshot =
-    capturePoseSnapshot(
-      {
-        type:
-          "keyframe"
-      }
-    );
-
-
-  if (!snapshot) {
-    return null;
-  }
-
-
-  snapshot.label =
-    label;
-
-
-  document.dispatchEvent(
-    new CustomEvent(
-      "pose:keyframe",
-      {
-        detail:
-          snapshot
-      }
-    )
-  );
-
-
-  return snapshot;
-
-}
-
-
-/* =========================================================
-   36. GET ANGLE
-========================================================= */
-
-function getCurrentPoseAngle(
-  angleName
-) {
-
-  return (
-    PoseManager.angles[
-      angleName
-    ] ??
-    null
-  );
-
-}
-
-
-/* =========================================================
-   37. GET LATEST RESULT
-========================================================= */
-
-function getLatestPoseResult() {
-
-  return (
-    PoseManager.latestResult ||
-    null
-  );
-
-}
-
-
-/* =========================================================
-   38. GET HISTORY
-========================================================= */
-
-function getPoseHistory() {
-
-  return [
-    ...PoseManager.history
-  ];
-
-}
-
-
-/* =========================================================
-   39. CLEAR HISTORY
-========================================================= */
-
-function clearPoseHistory() {
-
-  PoseManager.history =
-    [];
-
-
-  PoseManager.frameNumber =
-    0;
-
-}
-
-
-/* =========================================================
-   40. ENABLE / DISABLE
-========================================================= */
-
-function setPoseEnabled(
-  enabled
-) {
-
-  PoseManager.enabled =
-    Boolean(enabled);
-
-
-  updatePoseStatus(
-    PoseManager.enabled
-      ? "READY"
-      : "OFF"
-  );
-
-}
-
-
-/* =========================================================
-   41. AVERAGE ANGLE
-
-   일정 구간 평균 각도 계산
-========================================================= */
-
-function getAveragePoseAngle(
-  angleName,
-  startTime = null,
-  endTime = null
-) {
-
-  let history =
-    PoseManager.history;
-
-
-  if (
-    startTime !== null
-  ) {
-
-    history =
-      history.filter(
-        frame =>
-          frame.videoTime === null ||
-          frame.videoTime >=
-            startTime
-      );
-
-  }
-
-
-  if (
-    endTime !== null
-  ) {
-
-    history =
-      history.filter(
-        frame =>
-          frame.videoTime === null ||
-          frame.videoTime <=
-            endTime
-      );
-
-  }
-
-
-  const values =
-    history
-
-      .map(
-        frame =>
-          frame.angles[
-            angleName
-          ]
-      )
-
-      .filter(
-        value =>
-          Number.isFinite(
-            value
-          )
-      );
-
-
-  if (
-    values.length === 0
-  ) {
-
-    return null;
-
-  }
-
-
-  const average =
-    values.reduce(
-      (a, b) =>
-        a + b,
-      0
-    ) /
-    values.length;
-
-
-  return Number(
-    average.toFixed(1)
-  );
-
-}
-
-
-/* =========================================================
-   42. RANGE
-========================================================= */
-
-function getPoseAngleRange(
-  angleName
-) {
-
-  const values =
-    PoseManager.history
-
-      .map(
-        frame =>
-          frame.angles[
-            angleName
-          ]
-      )
-
-      .filter(
-        value =>
-          Number.isFinite(
-            value
-          )
-      );
-
-
-  if (
-    values.length === 0
-  ) {
-
-    return null;
-
-  }
-
-
-  return {
-
-    min:
-      Number(
-        Math.min(
-          ...values
-        ).toFixed(1)
-      ),
-
-    max:
-      Number(
-        Math.max(
-          ...values
-        ).toFixed(1)
-      ),
-
-    average:
-      Number(
-        (
-          values.reduce(
-            (a, b) =>
-              a + b,
-            0
-          ) /
-          values.length
-        ).toFixed(1)
-      )
-
-  };
-
-}
-
-
-/* =========================================================
-   43. AUTO INIT
-========================================================= */
-
-if (
-  document.readyState ===
-  "loading"
-) {
-
-  document.addEventListener(
-    "DOMContentLoaded",
-    initPose
-  );
-
-}
-
-else {
-
-  initPose();
-
-}
-
-
-/* =========================================================
-   44. GLOBAL ACCESS
-========================================================= */
-
-window.POSE_CONFIG =
-  POSE_CONFIG;
-
-window.POSE_LANDMARKS =
-  POSE_LANDMARKS;
-
-window.POSE_CONNECTIONS =
-  POSE_CONNECTIONS;
-
-window.PoseManager =
-  PoseManager;
-
-window.initPose =
-  initPose;
-
-window.setPoseDetector =
-  setPoseDetector;
-
-window.processPoseLandmarks =
-  processPoseLandmarks;
-
-window.calculateJointAngle =
-  calculateJointAngle;
-
-window.calculateAllPoseAngles =
-  calculateAllPoseAngles;
-
-window.calculatePoseSymmetry =
-  calculatePoseSymmetry;
-
-window.calculateTrunkAngle =
-  calculateTrunkAngle;
-
-window.capturePoseSnapshot =
-  capturePoseSnapshot;
-
-window.captureAngleSnapshot =
-  captureAngleSnapshot;
-
-window.capturePoseKeyFrame =
-  capturePoseKeyFrame;
-
-window.getCurrentPoseAngle =
-  getCurrentPoseAngle;
-
-window.getLatestPoseResult =
-  getLatestPoseResult;
-
-window.getPoseHistory =
-  getPoseHistory;
-
-window.clearPoseHistory =
-  clearPoseHistory;
-
-window.setPoseEnabled =
-  setPoseEnabled;
-
-window.getAveragePoseAngle =
-  getAveragePoseAngle;
-
-window.getPoseAngleRange =
-  getPoseAngleRange;
+})();
