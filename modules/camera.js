@@ -1,128 +1,307 @@
 /* =========================================================
    설천고 SPORTS PERFORMANCE ANALYSIS SYSTEM
    CAMERA MODULE
-   - iPad / iPhone Safari 대응
-   - Front / Rear Camera
-   - Camera Start / Stop
-   - Camera Switch
-   - Error Handling
+
+   기능
+   - iPad / iPhone Safari 지원
+   - 카메라 시작
+   - 카메라 정지
+   - 전면 / 후면 카메라 전환
+   - 실시간 영상 출력
+   - 권한 오류 처리
+   - 영상 분석과 충돌 방지
 ========================================================= */
 
 "use strict";
 
+
 window.SeolcheonCamera = (() => {
 
+  /* =======================================================
+     STATE
+  ======================================================= */
+
   let stream = null;
-  let videoElement = null;
 
   let facingMode = "environment";
-  let isRunning = false;
 
-  /* =======================================================
-     VIDEO ELEMENT 찾기
-  ======================================================= */
-
-  function findVideo() {
-
-    const selectors = [
-      "#analysisVideo",
-      "#cameraVideo",
-      "#motionVideo",
-      "#videoPlayer",
-      "video[data-camera]",
-      ".motion-stage video",
-      ".analysis-viewer-panel video",
-      "video"
-    ];
-
-    for (const selector of selectors) {
-
-      const element = document.querySelector(selector);
-
-      if (element) {
-        return element;
-      }
-
-    }
-
-    return null;
-  }
+  let running = false;
 
 
   /* =======================================================
-     VIDEO 기본 설정
+     ELEMENTS
   ======================================================= */
 
-  function prepareVideo(video) {
+  function getVideo() {
 
-    if (!video) return;
+    return (
+      document.querySelector(
+        "[data-analysis-video]"
+      ) ||
 
-    video.autoplay = true;
-    video.muted = true;
-    video.playsInline = true;
-
-    video.setAttribute("autoplay", "");
-    video.setAttribute("muted", "");
-    video.setAttribute("playsinline", "");
+      document.getElementById(
+        "analysisVideo"
+      )
+    );
 
   }
 
 
-  /* =======================================================
-     카메라 지원 확인
-  ======================================================= */
+  function getErrorBox() {
 
-  function cameraSupported() {
+    return (
+      document.getElementById(
+        "cameraError"
+      ) ||
 
-    return !!(
-      navigator.mediaDevices &&
-      navigator.mediaDevices.getUserMedia
+      document.querySelector(
+        ".camera-error"
+      )
     );
 
   }
 
 
   /* =======================================================
-     카메라 시작
+     ERROR
+  ======================================================= */
+
+  function showError(message) {
+
+    console.error(
+      "[CAMERA]",
+      message
+    );
+
+
+    const box =
+      getErrorBox();
+
+
+    if (box) {
+
+      box.textContent =
+        message;
+
+      box.hidden =
+        false;
+
+    }
+
+  }
+
+
+  function clearError() {
+
+    const box =
+      getErrorBox();
+
+
+    if (!box) {
+      return;
+    }
+
+
+    box.textContent =
+      "";
+
+    box.hidden =
+      true;
+
+  }
+
+
+  /* =======================================================
+     STOP TRACKS
+  ======================================================= */
+
+  function stopTracks() {
+
+    if (!stream) {
+      return;
+    }
+
+
+    stream
+      .getTracks()
+      .forEach(track => {
+
+        try {
+
+          track.stop();
+
+        }
+
+        catch (error) {
+
+          console.warn(
+            "[CAMERA TRACK STOP]",
+            error
+          );
+
+        }
+
+      });
+
+
+    stream = null;
+
+  }
+
+
+  /* =======================================================
+     CAMERA START
   ======================================================= */
 
   async function start() {
 
-    console.log("[CAMERA] start requested");
+    clearError();
 
-    if (!cameraSupported()) {
+
+    /*
+      HTTPS 확인
+      GitHub Pages에서는 정상적으로 true
+    */
+
+    if (!window.isSecureContext) {
 
       showError(
-        "이 브라우저에서는 카메라 기능을 사용할 수 없습니다."
+        "카메라는 HTTPS 보안 연결에서만 사용할 수 있습니다."
       );
 
       return false;
+
     }
 
 
-    videoElement = findVideo();
+    /*
+      브라우저 지원 확인
+    */
 
-    if (!videoElement) {
+    if (
+      !navigator.mediaDevices ||
+      !navigator.mediaDevices.getUserMedia
+    ) {
 
       showError(
-        "카메라 화면을 표시할 VIDEO 영역을 찾을 수 없습니다."
-      );
-
-      console.error(
-        "[CAMERA] video element not found"
+        "현재 브라우저에서 카메라 기능을 지원하지 않습니다."
       );
 
       return false;
+
     }
 
 
-    prepareVideo(videoElement);
+    const video =
+      getVideo();
 
 
-    /* 기존 카메라가 있으면 종료 */
+    if (!video) {
 
-    stopStream();
+      showError(
+        "카메라 영상을 표시할 VIDEO 영역을 찾지 못했습니다."
+      );
 
+      return false;
+
+    }
+
+
+    /*
+      기존 영상 분석 파일이 열려 있을 경우 정리
+    */
+
+    try {
+
+      video.pause();
+
+    }
+
+    catch (error) {
+
+      console.warn(error);
+
+    }
+
+
+    /*
+      기존 object URL 제거
+    */
+
+    if (
+      video.dataset.objectUrl
+    ) {
+
+      try {
+
+        URL.revokeObjectURL(
+          video.dataset.objectUrl
+        );
+
+      }
+
+      catch (error) {
+
+        console.warn(error);
+
+      }
+
+
+      delete video.dataset.objectUrl;
+
+    }
+
+
+    video.removeAttribute(
+      "src"
+    );
+
+
+    video.load();
+
+
+    /*
+      기존 카메라 종료
+    */
+
+    stopTracks();
+
+
+    /*
+      iOS Safari 필수 설정
+    */
+
+    video.autoplay =
+      true;
+
+    video.muted =
+      true;
+
+    video.playsInline =
+      true;
+
+
+    video.setAttribute(
+      "autoplay",
+      ""
+    );
+
+
+    video.setAttribute(
+      "muted",
+      ""
+    );
+
+
+    video.setAttribute(
+      "playsinline",
+      ""
+    );
+
+
+    /* =====================================================
+       CAMERA CONSTRAINTS
+    ===================================================== */
 
     const constraints = {
 
@@ -140,6 +319,11 @@ window.SeolcheonCamera = (() => {
 
         height: {
           ideal: 1080
+        },
+
+        frameRate: {
+          ideal: 60,
+          max: 60
         }
 
       }
@@ -149,33 +333,97 @@ window.SeolcheonCamera = (() => {
 
     try {
 
-      stream =
-        await navigator.mediaDevices.getUserMedia(
-          constraints
-        );
-
-
-      videoElement.srcObject = stream;
-
-
-      await videoElement.play();
-
-
-      isRunning = true;
-
-
       console.log(
-        "[CAMERA] started",
-        stream
+        "[CAMERA] requesting permission..."
       );
 
 
-      updateCameraStatus(
+      stream =
+        await navigator.mediaDevices
+          .getUserMedia(
+            constraints
+          );
+
+
+      console.log(
+        "[CAMERA] stream received"
+      );
+
+
+      video.srcObject =
+        stream;
+
+
+      /*
+        metadata가 준비될 때까지 대기
+      */
+
+      await new Promise(
+        resolve => {
+
+          if (
+            video.readyState >= 1
+          ) {
+
+            resolve();
+
+            return;
+
+          }
+
+
+          video.addEventListener(
+            "loadedmetadata",
+            resolve,
+            {
+              once: true
+            }
+          );
+
+        }
+      );
+
+
+      /*
+        Safari 재생
+      */
+
+      try {
+
+        await video.play();
+
+      }
+
+      catch (playError) {
+
+        console.warn(
+          "[CAMERA PLAY]",
+          playError
+        );
+
+      }
+
+
+      running =
+        true;
+
+
+      document.body.classList.add(
+        "camera-running"
+      );
+
+
+      updateStatus(
         "CAMERA ONLINE"
       );
 
 
       clearError();
+
+
+      console.log(
+        "[CAMERA] STARTED"
+      );
 
 
       return true;
@@ -184,79 +432,46 @@ window.SeolcheonCamera = (() => {
 
     catch (error) {
 
+      running =
+        false;
+
+
       console.error(
         "[CAMERA ERROR]",
         error
       );
 
 
-      isRunning = false;
-
-
-      handleCameraError(error);
+      handleError(
+        error
+      );
 
 
       return false;
+
     }
 
   }
 
 
   /* =======================================================
-     STREAM만 종료
-  ======================================================= */
-
-  function stopStream() {
-
-    if (!stream) return;
-
-
-    stream
-      .getTracks()
-      .forEach(track => {
-
-        try {
-
-          track.stop();
-
-        }
-
-        catch (error) {
-
-          console.warn(
-            "[CAMERA] track stop error",
-            error
-          );
-
-        }
-
-      });
-
-
-    stream = null;
-
-  }
-
-
-  /* =======================================================
-     카메라 정지
+     CAMERA STOP
   ======================================================= */
 
   function stop() {
 
-    console.log(
-      "[CAMERA] stop"
-    );
+    const video =
+      getVideo();
 
 
-    stopStream();
+    stopTracks();
 
 
-    if (videoElement) {
+    if (video) {
 
       try {
 
-        videoElement.pause();
+        video.pause();
 
       }
 
@@ -267,23 +482,35 @@ window.SeolcheonCamera = (() => {
       }
 
 
-      videoElement.srcObject = null;
+      video.srcObject =
+        null;
 
     }
 
 
-    isRunning = false;
+    running =
+      false;
 
 
-    updateCameraStatus(
+    document.body.classList.remove(
+      "camera-running"
+    );
+
+
+    updateStatus(
       "CAMERA OFFLINE"
+    );
+
+
+    console.log(
+      "[CAMERA] STOPPED"
     );
 
   }
 
 
   /* =======================================================
-     전면 / 후면 전환
+     SWITCH CAMERA
   ======================================================= */
 
   async function switchCamera() {
@@ -295,7 +522,7 @@ window.SeolcheonCamera = (() => {
 
 
     console.log(
-      "[CAMERA] switch:",
+      "[CAMERA] SWITCH",
       facingMode
     );
 
@@ -306,40 +533,23 @@ window.SeolcheonCamera = (() => {
 
 
   /* =======================================================
-     현재 카메라 정보
+     CAMERA ERRORS
   ======================================================= */
 
-  function getState() {
-
-    return {
-
-      running: isRunning,
-
-      facingMode,
-
-      stream
-
-    };
-
-  }
-
-
-  /* =======================================================
-     오류 처리
-  ======================================================= */
-
-  function handleCameraError(error) {
+  function handleError(error) {
 
     let message =
       "카메라를 시작할 수 없습니다.";
 
 
-    switch (error?.name) {
+    switch (
+      error?.name
+    ) {
 
       case "NotAllowedError":
 
         message =
-          "카메라 권한이 허용되지 않았습니다. Safari의 카메라 권한을 허용해주세요.";
+          "카메라 권한이 차단되어 있습니다. Safari에서 이 사이트의 카메라 권한을 허용해주세요.";
 
         break;
 
@@ -355,7 +565,7 @@ window.SeolcheonCamera = (() => {
       case "NotReadableError":
 
         message =
-          "카메라가 다른 앱에서 사용 중이거나 카메라를 시작할 수 없습니다.";
+          "카메라를 사용할 수 없습니다. 다른 앱에서 카메라를 사용 중인지 확인해주세요.";
 
         break;
 
@@ -363,7 +573,7 @@ window.SeolcheonCamera = (() => {
       case "OverconstrainedError":
 
         message =
-          "현재 기기에서 요청한 카메라 설정을 지원하지 않습니다.";
+          "현재 기기가 요청된 카메라 설정을 지원하지 않습니다.";
 
         break;
 
@@ -371,174 +581,85 @@ window.SeolcheonCamera = (() => {
       case "SecurityError":
 
         message =
-          "보안 설정 때문에 카메라를 사용할 수 없습니다.";
+          "브라우저 보안 설정 때문에 카메라를 사용할 수 없습니다.";
+
+        break;
+
+
+      case "AbortError":
+
+        message =
+          "카메라 시작이 중단되었습니다.";
 
         break;
 
     }
 
 
-    showError(message);
-
-  }
-
-
-  /* =======================================================
-     ERROR MESSAGE
-  ======================================================= */
-
-  function showError(message) {
-
-    console.error(
-      "[CAMERA]",
+    showError(
       message
     );
 
 
-    const errorTargets = [
-
-      "#cameraError",
-
-      "#analysisError",
-
-      ".camera-error",
-
-      ".analysis-error"
-
-    ];
-
-
-    let displayed = false;
-
-
-    for (const selector of errorTargets) {
-
-      const element =
-        document.querySelector(selector);
-
-
-      if (element) {
-
-        element.textContent = message;
-
-        element.hidden = false;
-
-        displayed = true;
-
-      }
-
-    }
-
-
-    updateCameraStatus(
+    updateStatus(
       "CAMERA ERROR"
     );
 
-
-    /*
-      별도 오류창이 없는 경우에만 alert
-    */
-
-    if (!displayed) {
-
-      alert(message);
-
-    }
-
-  }
-
-
-  function clearError() {
-
-    const selectors = [
-
-      "#cameraError",
-
-      "#analysisError",
-
-      ".camera-error",
-
-      ".analysis-error"
-
-    ];
-
-
-    selectors.forEach(selector => {
-
-      document
-        .querySelectorAll(selector)
-        .forEach(element => {
-
-          element.textContent = "";
-
-          element.hidden = true;
-
-        });
-
-    });
-
   }
 
 
   /* =======================================================
-     UI STATUS
+     STATUS
   ======================================================= */
 
-  function updateCameraStatus(text) {
+  function updateStatus(
+    text
+  ) {
 
-    const selectors = [
+    document
+      .querySelectorAll(
+        "[data-camera-status]"
+      )
+      .forEach(
+        element => {
 
-      "#cameraStatus",
+          element.textContent =
+            text;
 
-      "[data-camera-status]",
-
-      ".camera-status"
-
-    ];
-
-
-    selectors.forEach(selector => {
-
-      document
-        .querySelectorAll(selector)
-        .forEach(element => {
-
-          element.textContent = text;
-
-        });
-
-    });
+        }
+      );
 
   }
 
 
   /* =======================================================
-     버튼 자동 연결
+     BUTTON BIND
   ======================================================= */
 
   function bindButtons() {
 
-    const startSelectors = [
+    /*
+      START
+    */
 
-      "#startCameraBtn",
-
-      "#cameraStartBtn",
-
-      "[data-action='camera-start']"
-
-    ];
-
-
-    startSelectors.forEach(selector => {
-
-      document
-        .querySelectorAll(selector)
-        .forEach(button => {
+    document
+      .querySelectorAll(
+        `
+        #startCameraBtn,
+        [data-camera-start],
+        [data-action="camera-start"]
+        `
+      )
+      .forEach(
+        button => {
 
           if (
-            button.dataset.cameraBound === "true"
+            button.dataset.cameraBound ===
+            "true"
           ) {
+
             return;
+
           }
 
 
@@ -548,39 +669,42 @@ window.SeolcheonCamera = (() => {
 
           button.addEventListener(
             "click",
-            async () => {
+            async event => {
+
+              event.preventDefault();
+
 
               await start();
 
             }
           );
 
-        });
-
-    });
-
-
-    const stopSelectors = [
-
-      "#stopCameraBtn",
-
-      "#cameraStopBtn",
-
-      "[data-action='camera-stop']"
-
-    ];
+        }
+      );
 
 
-    stopSelectors.forEach(selector => {
+    /*
+      STOP
+    */
 
-      document
-        .querySelectorAll(selector)
-        .forEach(button => {
+    document
+      .querySelectorAll(
+        `
+        #stopCameraBtn,
+        [data-camera-stop],
+        [data-action="camera-stop"]
+        `
+      )
+      .forEach(
+        button => {
 
           if (
-            button.dataset.cameraBound === "true"
+            button.dataset.cameraBound ===
+            "true"
           ) {
+
             return;
+
           }
 
 
@@ -590,35 +714,41 @@ window.SeolcheonCamera = (() => {
 
           button.addEventListener(
             "click",
-            stop
+            event => {
+
+              event.preventDefault();
+
+              stop();
+
+            }
           );
 
-        });
-
-    });
-
-
-    const switchSelectors = [
-
-      "#switchCameraBtn",
-
-      "#cameraSwitchBtn",
-
-      "[data-action='camera-switch']"
-
-    ];
+        }
+      );
 
 
-    switchSelectors.forEach(selector => {
+    /*
+      SWITCH
+    */
 
-      document
-        .querySelectorAll(selector)
-        .forEach(button => {
+    document
+      .querySelectorAll(
+        `
+        #switchCameraBtn,
+        [data-camera-switch],
+        [data-action="camera-switch"]
+        `
+      )
+      .forEach(
+        button => {
 
           if (
-            button.dataset.cameraBound === "true"
+            button.dataset.cameraBound ===
+            "true"
           ) {
+
             return;
+
           }
 
 
@@ -628,98 +758,108 @@ window.SeolcheonCamera = (() => {
 
           button.addEventListener(
             "click",
-            async () => {
+            async event => {
+
+              event.preventDefault();
+
 
               await switchCamera();
 
             }
           );
 
-        });
-
-    });
+        }
+      );
 
   }
 
 
   /* =======================================================
-     초기화
+     INIT
   ======================================================= */
 
   function init() {
 
     console.log(
-      "[CAMERA] module ready"
+      "[CAMERA] MODULE READY"
     );
-
-
-    videoElement =
-      findVideo();
-
-
-    if (videoElement) {
-
-      prepareVideo(
-        videoElement
-      );
-
-    }
 
 
     bindButtons();
 
+
+    /*
+      화면이 동적으로 변경돼도
+      버튼 다시 연결
+    */
+
+    const observer =
+      new MutationObserver(
+        () => {
+
+          bindButtons();
+
+        }
+      );
+
+
+    if (
+      document.body
+    ) {
+
+      observer.observe(
+        document.body,
+        {
+          childList: true,
+          subtree: true
+        }
+      );
+
+    }
+
   }
 
 
-  /* 페이지가 동적으로 바뀌는 경우
-     새 버튼도 자동 감지
-  */
+  /* =======================================================
+     STATE
+  ======================================================= */
 
-  const observer =
-    new MutationObserver(() => {
+  function getState() {
 
-      bindButtons();
+    return {
 
-      if (!videoElement) {
+      running,
 
-        videoElement =
-          findVideo();
+      facingMode,
 
+      stream
 
-        if (videoElement) {
+    };
 
-          prepareVideo(
-            videoElement
-          );
-
-        }
-
-      }
-
-    });
+  }
 
 
-  document.addEventListener(
-    "DOMContentLoaded",
-    () => {
+  /* =======================================================
+     PAGE LOAD
+  ======================================================= */
 
-      init();
+  if (
+    document.readyState ===
+    "loading"
+  ) {
 
+    document.addEventListener(
+      "DOMContentLoaded",
+      init
+    );
 
-      if (document.body) {
+  }
 
-        observer.observe(
-          document.body,
-          {
-            childList: true,
-            subtree: true
-          }
-        );
+  else {
 
-      }
+    init();
 
-    }
-  );
+  }
 
 
   /* =======================================================
@@ -727,8 +867,6 @@ window.SeolcheonCamera = (() => {
   ======================================================= */
 
   return {
-
-    init,
 
     start,
 
