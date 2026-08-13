@@ -1,1541 +1,743 @@
 /* =========================================================
    설천고 SPORTS PERFORMANCE ANALYSIS SYSTEM
-   MODULES / CAMERA.JS
-   VERSION 1.0
-
-   기능
-   ---------------------------------------------------------
-   - 실시간 카메라 시작
-   - 카메라 정지
-   - 전면 / 후면 카메라 전환
+   CAMERA MODULE
    - iPad / iPhone Safari 대응
-   - 실시간 FPS 계산
-   - Canvas 프레임 출력
-   - Pose 분석 엔진 연결
-   - 스냅샷 생성
-   - 카메라 상태 관리
+   - Front / Rear Camera
+   - Camera Start / Stop
+   - Camera Switch
+   - Error Handling
 ========================================================= */
 
 "use strict";
 
+window.SeolcheonCamera = (() => {
 
-/* =========================================================
-   01. CAMERA CONFIG
-========================================================= */
+  let stream = null;
+  let videoElement = null;
 
-const CAMERA_CONFIG = {
+  let facingMode = "environment";
+  let isRunning = false;
 
-  width: {
-    ideal: 1280
-  },
+  /* =======================================================
+     VIDEO ELEMENT 찾기
+  ======================================================= */
 
-  height: {
-    ideal: 720
-  },
+  function findVideo() {
 
-  frameRate: {
-    ideal: 30,
-    max: 60
-  },
+    const selectors = [
+      "#analysisVideo",
+      "#cameraVideo",
+      "#motionVideo",
+      "#videoPlayer",
+      "video[data-camera]",
+      ".motion-stage video",
+      ".analysis-viewer-panel video",
+      "video"
+    ];
 
-  defaultFacingMode:
-    "environment",
+    for (const selector of selectors) {
 
-  mirrorFrontCamera:
-    true
+      const element = document.querySelector(selector);
 
-};
+      if (element) {
+        return element;
+      }
 
+    }
 
-/* =========================================================
-   02. CAMERA STATE
-========================================================= */
-
-const CameraManager = {
-
-  stream:
-    null,
-
-  video:
-    null,
-
-  canvas:
-    null,
-
-  context:
-    null,
-
-  running:
-    false,
-
-  facingMode:
-    CAMERA_CONFIG.defaultFacingMode,
-
-  animationFrame:
-    null,
-
-  lastFrameTime:
-    0,
-
-  fps:
-    0,
-
-  frameCount:
-    0,
-
-  fpsTimer:
-    0,
-
-  width:
-    0,
-
-  height:
-    0,
-
-  initialized:
-    false
-
-};
-
-
-/* =========================================================
-   03. INITIALIZE
-========================================================= */
-
-function initCamera() {
-
-  if (
-    CameraManager.initialized
-  ) {
-    return;
+    return null;
   }
 
 
-  CameraManager.initialized =
-    true;
+  /* =======================================================
+     VIDEO 기본 설정
+  ======================================================= */
+
+  function prepareVideo(video) {
+
+    if (!video) return;
+
+    video.autoplay = true;
+    video.muted = true;
+    video.playsInline = true;
+
+    video.setAttribute("autoplay", "");
+    video.setAttribute("muted", "");
+    video.setAttribute("playsinline", "");
+
+  }
 
 
-  bindCameraEvents();
+  /* =======================================================
+     카메라 지원 확인
+  ======================================================= */
 
+  function cameraSupported() {
 
-  console.log(
-    "[CAMERA] Camera module ready"
-  );
-
-}
-
-
-/* =========================================================
-   04. EVENT BINDING
-========================================================= */
-
-function bindCameraEvents() {
-
-  document.addEventListener(
-    "click",
-    handleCameraClick
-  );
-
-
-  document.addEventListener(
-    "visibilitychange",
-    handleVisibilityChange
-  );
-
-}
-
-
-/* =========================================================
-   05. BUTTON EVENTS
-========================================================= */
-
-function handleCameraClick(
-  event
-) {
-
-  const startButton =
-    event.target.closest(
-      [
-        "[data-action='camera-start']",
-        "#camera-start",
-        "#start-camera"
-      ].join(",")
+    return !!(
+      navigator.mediaDevices &&
+      navigator.mediaDevices.getUserMedia
     );
 
-
-  if (startButton) {
-
-    event.preventDefault();
-
-    startCamera();
-
-    return;
-
   }
 
 
-  const stopButton =
-    event.target.closest(
-      [
-        "[data-action='camera-stop']",
-        "#camera-stop",
-        "#stop-camera"
-      ].join(",")
-    );
+  /* =======================================================
+     카메라 시작
+  ======================================================= */
 
+  async function start() {
 
-  if (stopButton) {
+    console.log("[CAMERA] start requested");
 
-    event.preventDefault();
+    if (!cameraSupported()) {
 
-    stopCamera();
+      showError(
+        "이 브라우저에서는 카메라 기능을 사용할 수 없습니다."
+      );
 
-    return;
+      return false;
+    }
 
-  }
 
+    videoElement = findVideo();
 
-  const switchButton =
-    event.target.closest(
-      [
-        "[data-action='camera-switch']",
-        "#camera-switch",
-        "#switch-camera"
-      ].join(",")
-    );
+    if (!videoElement) {
 
+      showError(
+        "카메라 화면을 표시할 VIDEO 영역을 찾을 수 없습니다."
+      );
 
-  if (switchButton) {
+      console.error(
+        "[CAMERA] video element not found"
+      );
 
-    event.preventDefault();
+      return false;
+    }
 
-    switchCamera();
 
-    return;
+    prepareVideo(videoElement);
 
-  }
 
+    /* 기존 카메라가 있으면 종료 */
 
-  const snapshotButton =
-    event.target.closest(
-      [
-        "[data-action='camera-snapshot']",
-        "#camera-snapshot"
-      ].join(",")
-    );
+    stopStream();
 
-
-  if (snapshotButton) {
-
-    event.preventDefault();
-
-    captureCameraSnapshot();
-
-  }
-
-}
-
-
-/* =========================================================
-   06. FIND VIDEO
-========================================================= */
-
-function findCameraVideo() {
-
-  return (
-
-    document.getElementById(
-      "camera-video"
-    ) ||
-
-    document.getElementById(
-      "analysis-video"
-    ) ||
-
-    document.querySelector(
-      "[data-camera-video]"
-    ) ||
-
-    document.querySelector(
-      ".camera-video"
-    )
-
-  );
-
-}
-
-
-/* =========================================================
-   07. FIND CANVAS
-========================================================= */
-
-function findCameraCanvas() {
-
-  return (
-
-    document.getElementById(
-      "pose-canvas"
-    ) ||
-
-    document.getElementById(
-      "analysis-canvas"
-    ) ||
-
-    document.querySelector(
-      "[data-analysis-canvas]"
-    )
-
-  );
-
-}
-
-
-/* =========================================================
-   08. CAMERA SUPPORT
-========================================================= */
-
-function isCameraSupported() {
-
-  return Boolean(
-
-    navigator.mediaDevices &&
-
-    typeof navigator.mediaDevices
-      .getUserMedia ===
-      "function"
-
-  );
-
-}
-
-
-/* =========================================================
-   09. START CAMERA
-========================================================= */
-
-async function startCamera() {
-
-  if (
-    !isCameraSupported()
-  ) {
-
-    showCameraMessage(
-      "이 브라우저에서는 카메라 기능을 사용할 수 없습니다.",
-      "error"
-    );
-
-    return false;
-
-  }
-
-
-  /*
-     GitHub Pages는 HTTPS이므로 정상 작동.
-     로컬 테스트에서는 localhost 권장.
-  */
-
-  if (
-    location.protocol !== "https:" &&
-    location.hostname !== "localhost"
-  ) {
-
-    showCameraMessage(
-      "카메라는 HTTPS 환경에서 실행해야 합니다.",
-      "error"
-    );
-
-    return false;
-
-  }
-
-
-  const video =
-    findCameraVideo();
-
-
-  if (!video) {
-
-    showCameraMessage(
-      "카메라 화면을 찾을 수 없습니다.",
-      "error"
-    );
-
-    console.error(
-      "[CAMERA] #camera-video가 없습니다."
-    );
-
-    return false;
-
-  }
-
-
-  /*
-     기존 카메라가 실행 중이면
-     먼저 종료
-  */
-
-  if (
-    CameraManager.stream
-  ) {
-
-    stopCameraStream();
-
-  }
-
-
-  showCameraMessage(
-    "카메라 연결 중...",
-    "loading"
-  );
-
-
-  try {
 
     const constraints = {
 
-      audio:
-        false,
+      audio: false,
 
       video: {
 
         facingMode: {
-          ideal:
-            CameraManager.facingMode
+          ideal: facingMode
         },
 
-        width:
-          CAMERA_CONFIG.width,
+        width: {
+          ideal: 1920
+        },
 
-        height:
-          CAMERA_CONFIG.height,
-
-        frameRate:
-          CAMERA_CONFIG.frameRate
+        height: {
+          ideal: 1080
+        }
 
       }
 
     };
 
 
-    const stream =
-      await navigator.mediaDevices
-        .getUserMedia(
+    try {
+
+      stream =
+        await navigator.mediaDevices.getUserMedia(
           constraints
         );
 
 
-    CameraManager.stream =
-      stream;
+      videoElement.srcObject = stream;
 
 
-    CameraManager.video =
-      video;
+      await videoElement.play();
 
 
-    video.srcObject =
-      stream;
+      isRunning = true;
 
 
-    /*
-       iOS Safari 대응
-    */
-
-    video.autoplay =
-      true;
-
-    video.muted =
-      true;
-
-    video.playsInline =
-      true;
+      console.log(
+        "[CAMERA] started",
+        stream
+      );
 
 
-    video.setAttribute(
-      "playsinline",
-      ""
+      updateCameraStatus(
+        "CAMERA ONLINE"
+      );
+
+
+      clearError();
+
+
+      return true;
+
+    }
+
+    catch (error) {
+
+      console.error(
+        "[CAMERA ERROR]",
+        error
+      );
+
+
+      isRunning = false;
+
+
+      handleCameraError(error);
+
+
+      return false;
+    }
+
+  }
+
+
+  /* =======================================================
+     STREAM만 종료
+  ======================================================= */
+
+  function stopStream() {
+
+    if (!stream) return;
+
+
+    stream
+      .getTracks()
+      .forEach(track => {
+
+        try {
+
+          track.stop();
+
+        }
+
+        catch (error) {
+
+          console.warn(
+            "[CAMERA] track stop error",
+            error
+          );
+
+        }
+
+      });
+
+
+    stream = null;
+
+  }
+
+
+  /* =======================================================
+     카메라 정지
+  ======================================================= */
+
+  function stop() {
+
+    console.log(
+      "[CAMERA] stop"
     );
 
 
-    video.setAttribute(
-      "webkit-playsinline",
-      ""
-    );
+    stopStream();
 
 
-    await video.play();
+    if (videoElement) {
+
+      try {
+
+        videoElement.pause();
+
+      }
+
+      catch (error) {
+
+        console.warn(error);
+
+      }
 
 
-    await waitForVideoMetadata(
-      video
-    );
+      videoElement.srcObject = null;
+
+    }
 
 
-    CameraManager.width =
-      video.videoWidth;
-
-
-    CameraManager.height =
-      video.videoHeight;
-
-
-    setupCameraCanvas();
-
-
-    CameraManager.running =
-      true;
-
-
-    CameraManager.lastFrameTime =
-      performance.now();
-
-
-    CameraManager.frameCount =
-      0;
-
-
-    CameraManager.fpsTimer =
-      performance.now();
-
-
-    updateCameraMirror();
-
-
-    startCameraRenderLoop();
+    isRunning = false;
 
 
     updateCameraStatus(
-      "LIVE"
+      "CAMERA OFFLINE"
     );
-
-
-    showCameraMessage(
-      "실시간 카메라 연결 완료",
-      "success"
-    );
-
-
-    document.dispatchEvent(
-      new CustomEvent(
-        "camera:started",
-        {
-          detail: {
-
-            stream,
-
-            video,
-
-            width:
-              CameraManager.width,
-
-            height:
-              CameraManager.height,
-
-            facingMode:
-              CameraManager.facingMode
-
-          }
-        }
-      )
-    );
-
-
-    return true;
 
   }
 
-  catch (error) {
 
-    handleCameraError(
-      error
+  /* =======================================================
+     전면 / 후면 전환
+  ======================================================= */
+
+  async function switchCamera() {
+
+    facingMode =
+      facingMode === "environment"
+        ? "user"
+        : "environment";
+
+
+    console.log(
+      "[CAMERA] switch:",
+      facingMode
     );
 
 
-    return false;
+    return await start();
 
   }
 
-}
+
+  /* =======================================================
+     현재 카메라 정보
+  ======================================================= */
+
+  function getState() {
+
+    return {
+
+      running: isRunning,
+
+      facingMode,
+
+      stream
+
+    };
+
+  }
 
 
-/* =========================================================
-   10. WAIT VIDEO METADATA
-========================================================= */
+  /* =======================================================
+     오류 처리
+  ======================================================= */
 
-function waitForVideoMetadata(
-  video
-) {
+  function handleCameraError(error) {
 
-  return new Promise(
-    resolve => {
+    let message =
+      "카메라를 시작할 수 없습니다.";
 
-      if (
-        video.readyState >= 1 &&
-        video.videoWidth > 0
-      ) {
 
-        resolve();
+    switch (error?.name) {
 
-        return;
+      case "NotAllowedError":
+
+        message =
+          "카메라 권한이 허용되지 않았습니다. Safari의 카메라 권한을 허용해주세요.";
+
+        break;
+
+
+      case "NotFoundError":
+
+        message =
+          "사용 가능한 카메라를 찾지 못했습니다.";
+
+        break;
+
+
+      case "NotReadableError":
+
+        message =
+          "카메라가 다른 앱에서 사용 중이거나 카메라를 시작할 수 없습니다.";
+
+        break;
+
+
+      case "OverconstrainedError":
+
+        message =
+          "현재 기기에서 요청한 카메라 설정을 지원하지 않습니다.";
+
+        break;
+
+
+      case "SecurityError":
+
+        message =
+          "보안 설정 때문에 카메라를 사용할 수 없습니다.";
+
+        break;
+
+    }
+
+
+    showError(message);
+
+  }
+
+
+  /* =======================================================
+     ERROR MESSAGE
+  ======================================================= */
+
+  function showError(message) {
+
+    console.error(
+      "[CAMERA]",
+      message
+    );
+
+
+    const errorTargets = [
+
+      "#cameraError",
+
+      "#analysisError",
+
+      ".camera-error",
+
+      ".analysis-error"
+
+    ];
+
+
+    let displayed = false;
+
+
+    for (const selector of errorTargets) {
+
+      const element =
+        document.querySelector(selector);
+
+
+      if (element) {
+
+        element.textContent = message;
+
+        element.hidden = false;
+
+        displayed = true;
 
       }
 
-
-      video.addEventListener(
-        "loadedmetadata",
-        () => resolve(),
-        {
-          once: true
-        }
-      );
-
-    }
-  );
-
-}
-
-
-/* =========================================================
-   11. SETUP CANVAS
-========================================================= */
-
-function setupCameraCanvas() {
-
-  const canvas =
-    findCameraCanvas();
-
-
-  if (!canvas) {
-
-    CameraManager.canvas =
-      null;
-
-    CameraManager.context =
-      null;
-
-    return;
-
-  }
-
-
-  CameraManager.canvas =
-    canvas;
-
-
-  canvas.width =
-    CameraManager.width ||
-    1280;
-
-
-  canvas.height =
-    CameraManager.height ||
-    720;
-
-
-  CameraManager.context =
-    canvas.getContext(
-      "2d"
-    );
-
-}
-
-
-/* =========================================================
-   12. CAMERA RENDER LOOP
-========================================================= */
-
-function startCameraRenderLoop() {
-
-  cancelCameraRenderLoop();
-
-
-  function render(
-    timestamp
-  ) {
-
-    if (
-      !CameraManager.running
-    ) {
-
-      return;
-
     }
 
 
-    calculateCameraFPS(
-      timestamp
+    updateCameraStatus(
+      "CAMERA ERROR"
     );
-
-
-    drawCameraFrame();
 
 
     /*
-       pose.js에서 이 이벤트를 받아
-       스켈레톤 분석 가능
+      별도 오류창이 없는 경우에만 alert
     */
 
-    document.dispatchEvent(
-      new CustomEvent(
-        "camera:frame",
-        {
-          detail: {
+    if (!displayed) {
 
-            video:
-              CameraManager.video,
+      alert(message);
 
-            canvas:
-              CameraManager.canvas,
+    }
 
-            timestamp,
+  }
 
-            fps:
-              CameraManager.fps
 
+  function clearError() {
+
+    const selectors = [
+
+      "#cameraError",
+
+      "#analysisError",
+
+      ".camera-error",
+
+      ".analysis-error"
+
+    ];
+
+
+    selectors.forEach(selector => {
+
+      document
+        .querySelectorAll(selector)
+        .forEach(element => {
+
+          element.textContent = "";
+
+          element.hidden = true;
+
+        });
+
+    });
+
+  }
+
+
+  /* =======================================================
+     UI STATUS
+  ======================================================= */
+
+  function updateCameraStatus(text) {
+
+    const selectors = [
+
+      "#cameraStatus",
+
+      "[data-camera-status]",
+
+      ".camera-status"
+
+    ];
+
+
+    selectors.forEach(selector => {
+
+      document
+        .querySelectorAll(selector)
+        .forEach(element => {
+
+          element.textContent = text;
+
+        });
+
+    });
+
+  }
+
+
+  /* =======================================================
+     버튼 자동 연결
+  ======================================================= */
+
+  function bindButtons() {
+
+    const startSelectors = [
+
+      "#startCameraBtn",
+
+      "#cameraStartBtn",
+
+      "[data-action='camera-start']"
+
+    ];
+
+
+    startSelectors.forEach(selector => {
+
+      document
+        .querySelectorAll(selector)
+        .forEach(button => {
+
+          if (
+            button.dataset.cameraBound === "true"
+          ) {
+            return;
           }
-        }
-      )
-    );
 
 
-    CameraManager.animationFrame =
-      requestAnimationFrame(
-        render
-      );
-
-  }
+          button.dataset.cameraBound =
+            "true";
 
 
-  CameraManager.animationFrame =
-    requestAnimationFrame(
-      render
-    );
+          button.addEventListener(
+            "click",
+            async () => {
 
-}
+              await start();
 
+            }
+          );
 
-/* =========================================================
-   13. DRAW FRAME
-========================================================= */
+        });
 
-function drawCameraFrame() {
-
-  const video =
-    CameraManager.video;
+    });
 
 
-  const canvas =
-    CameraManager.canvas;
+    const stopSelectors = [
+
+      "#stopCameraBtn",
+
+      "#cameraStopBtn",
+
+      "[data-action='camera-stop']"
+
+    ];
 
 
-  const ctx =
-    CameraManager.context;
+    stopSelectors.forEach(selector => {
+
+      document
+        .querySelectorAll(selector)
+        .forEach(button => {
+
+          if (
+            button.dataset.cameraBound === "true"
+          ) {
+            return;
+          }
 
 
-  if (
-    !video ||
-    !canvas ||
-    !ctx
-  ) {
-
-    return;
-
-  }
+          button.dataset.cameraBound =
+            "true";
 
 
-  if (
-    video.readyState < 2
-  ) {
+          button.addEventListener(
+            "click",
+            stop
+          );
 
-    return;
+        });
 
-  }
-
-
-  const width =
-    canvas.width;
+    });
 
 
-  const height =
-    canvas.height;
+    const switchSelectors = [
+
+      "#switchCameraBtn",
+
+      "#cameraSwitchBtn",
+
+      "[data-action='camera-switch']"
+
+    ];
 
 
-  ctx.clearRect(
-    0,
-    0,
-    width,
-    height
-  );
+    switchSelectors.forEach(selector => {
+
+      document
+        .querySelectorAll(selector)
+        .forEach(button => {
+
+          if (
+            button.dataset.cameraBound === "true"
+          ) {
+            return;
+          }
 
 
-  /*
-     전면 카메라만 좌우 반전
-  */
+          button.dataset.cameraBound =
+            "true";
 
-  if (
-    CameraManager.facingMode ===
-      "user" &&
-    CAMERA_CONFIG.mirrorFrontCamera
-  ) {
 
-    ctx.save();
+          button.addEventListener(
+            "click",
+            async () => {
 
-    ctx.translate(
-      width,
-      0
-    );
+              await switchCamera();
 
-    ctx.scale(
-      -1,
-      1
-    );
+            }
+          );
 
-    ctx.drawImage(
-      video,
-      0,
-      0,
-      width,
-      height
-    );
+        });
 
-    ctx.restore();
+    });
 
   }
 
-  else {
 
-    ctx.drawImage(
-      video,
-      0,
-      0,
-      width,
-      height
-    );
+  /* =======================================================
+     초기화
+  ======================================================= */
 
-  }
+  function init() {
 
-}
-
-
-/* =========================================================
-   14. FPS
-========================================================= */
-
-function calculateCameraFPS(
-  timestamp
-) {
-
-  CameraManager.frameCount++;
-
-
-  const elapsed =
-    timestamp -
-    CameraManager.fpsTimer;
-
-
-  if (
-    elapsed >= 1000
-  ) {
-
-    CameraManager.fps =
-      Math.round(
-        CameraManager.frameCount *
-        1000 /
-        elapsed
-      );
-
-
-    CameraManager.frameCount =
-      0;
-
-
-    CameraManager.fpsTimer =
-      timestamp;
-
-
-    updateFPSDisplay();
-
-  }
-
-}
-
-
-/* =========================================================
-   15. FPS DISPLAY
-========================================================= */
-
-function updateFPSDisplay() {
-
-  document
-    .querySelectorAll(
-      [
-        "[data-camera-fps]",
-        "#camera-fps",
-        "#analysis-fps"
-      ].join(",")
-    )
-    .forEach(
-      element => {
-
-        element.textContent =
-          `${CameraManager.fps} FPS`;
-
-      }
-    );
-
-}
-
-
-/* =========================================================
-   16. STOP CAMERA
-========================================================= */
-
-function stopCamera() {
-
-  CameraManager.running =
-    false;
-
-
-  cancelCameraRenderLoop();
-
-
-  stopCameraStream();
-
-
-  const video =
-    CameraManager.video;
-
-
-  if (video) {
-
-    video.pause();
-
-    video.srcObject =
-      null;
-
-  }
-
-
-  CameraManager.stream =
-    null;
-
-
-  CameraManager.fps =
-    0;
-
-
-  updateFPSDisplay();
-
-
-  updateCameraStatus(
-    "READY"
-  );
-
-
-  showCameraMessage(
-    "카메라가 정지되었습니다.",
-    ""
-  );
-
-
-  document.dispatchEvent(
-    new CustomEvent(
-      "camera:stopped"
-    )
-  );
-
-}
-
-
-/* =========================================================
-   17. STOP STREAM
-========================================================= */
-
-function stopCameraStream() {
-
-  if (
-    !CameraManager.stream
-  ) {
-
-    return;
-
-  }
-
-
-  CameraManager.stream
-    .getTracks()
-    .forEach(
-      track =>
-        track.stop()
-    );
-
-}
-
-
-/* =========================================================
-   18. CANCEL LOOP
-========================================================= */
-
-function cancelCameraRenderLoop() {
-
-  if (
-    CameraManager.animationFrame
-  ) {
-
-    cancelAnimationFrame(
-      CameraManager.animationFrame
+    console.log(
+      "[CAMERA] module ready"
     );
 
 
-    CameraManager.animationFrame =
-      null;
+    videoElement =
+      findVideo();
 
-  }
 
-}
+    if (videoElement) {
 
-
-/* =========================================================
-   19. SWITCH CAMERA
-========================================================= */
-
-async function switchCamera() {
-
-  const wasRunning =
-    CameraManager.running;
-
-
-  CameraManager.facingMode =
-
-    CameraManager.facingMode ===
-      "environment"
-
-      ? "user"
-
-      : "environment";
-
-
-  if (!wasRunning) {
-
-    updateCameraMirror();
-
-    return;
-
-  }
-
-
-  stopCamera();
-
-
-  await new Promise(
-    resolve =>
-      setTimeout(
-        resolve,
-        200
-      )
-  );
-
-
-  return startCamera();
-
-}
-
-
-/* =========================================================
-   20. MIRROR VIDEO
-========================================================= */
-
-function updateCameraMirror() {
-
-  const video =
-    CameraManager.video ||
-    findCameraVideo();
-
-
-  if (!video) {
-    return;
-  }
-
-
-  if (
-    CameraManager.facingMode ===
-      "user" &&
-    CAMERA_CONFIG.mirrorFrontCamera
-  ) {
-
-    video.classList.add(
-      "camera-mirror"
-    );
-
-  }
-
-  else {
-
-    video.classList.remove(
-      "camera-mirror"
-    );
-
-  }
-
-}
-
-
-/* =========================================================
-   21. SNAPSHOT
-========================================================= */
-
-function captureCameraSnapshot() {
-
-  const video =
-    CameraManager.video;
-
-
-  if (
-    !video ||
-    !CameraManager.running
-  ) {
-
-    showCameraMessage(
-      "먼저 카메라를 시작해주세요.",
-      "error"
-    );
-
-    return null;
-
-  }
-
-
-  const snapshot =
-    document.createElement(
-      "canvas"
-    );
-
-
-  snapshot.width =
-    video.videoWidth;
-
-
-  snapshot.height =
-    video.videoHeight;
-
-
-  const ctx =
-    snapshot.getContext(
-      "2d"
-    );
-
-
-  if (
-    CameraManager.facingMode ===
-      "user" &&
-    CAMERA_CONFIG.mirrorFrontCamera
-  ) {
-
-    ctx.translate(
-      snapshot.width,
-      0
-    );
-
-
-    ctx.scale(
-      -1,
-      1
-    );
-
-  }
-
-
-  ctx.drawImage(
-    video,
-    0,
-    0,
-    snapshot.width,
-    snapshot.height
-  );
-
-
-  const dataURL =
-    snapshot.toDataURL(
-      "image/jpeg",
-      0.9
-    );
-
-
-  const snapshotData = {
-
-    id:
-      "snapshot_" +
-      Date.now(),
-
-    createdAt:
-      new Date()
-        .toISOString(),
-
-    width:
-      snapshot.width,
-
-    height:
-      snapshot.height,
-
-    image:
-      dataURL
-
-  };
-
-
-  document.dispatchEvent(
-    new CustomEvent(
-      "camera:snapshot",
-      {
-        detail:
-          snapshotData
-      }
-    )
-  );
-
-
-  showCameraMessage(
-    "분석 프레임을 캡처했습니다.",
-    "success"
-  );
-
-
-  return snapshotData;
-
-}
-
-
-/* =========================================================
-   22. STATUS
-========================================================= */
-
-function updateCameraStatus(
-  status
-) {
-
-  document
-    .querySelectorAll(
-      [
-        "[data-camera-status]",
-        "#camera-status"
-      ].join(",")
-    )
-    .forEach(
-      element => {
-
-        element.textContent =
-          status;
-
-
-        element.dataset.status =
-          status.toLowerCase();
-
-      }
-    );
-
-}
-
-
-/* =========================================================
-   23. MESSAGE
-========================================================= */
-
-function showCameraMessage(
-  message,
-  type = ""
-) {
-
-  const element =
-
-    document.getElementById(
-      "camera-message"
-    ) ||
-
-    document.querySelector(
-      "[data-camera-message]"
-    );
-
-
-  if (!element) {
-
-    if (message) {
-
-      console.log(
-        "[CAMERA]",
-        message
+      prepareVideo(
+        videoElement
       );
 
     }
 
-    return;
+
+    bindButtons();
 
   }
 
 
-  element.textContent =
-    message;
+  /* 페이지가 동적으로 바뀌는 경우
+     새 버튼도 자동 감지
+  */
 
+  const observer =
+    new MutationObserver(() => {
 
-  element.dataset.type =
-    type;
+      bindButtons();
 
+      if (!videoElement) {
 
-  element.hidden =
-    !message;
+        videoElement =
+          findVideo();
 
-}
 
+        if (videoElement) {
 
-/* =========================================================
-   24. CAMERA ERROR
-========================================================= */
+          prepareVideo(
+            videoElement
+          );
 
-function handleCameraError(
-  error
-) {
+        }
 
-  console.error(
-    "[CAMERA]",
-    error
-  );
+      }
 
+    });
 
-  let message =
-    "카메라를 시작할 수 없습니다.";
-
-
-  switch (
-    error?.name
-  ) {
-
-    case "NotAllowedError":
-
-      message =
-        "카메라 권한이 허용되지 않았습니다. Safari의 사이트 카메라 권한을 확인해주세요.";
-
-      break;
-
-
-    case "NotFoundError":
-
-      message =
-        "사용 가능한 카메라를 찾을 수 없습니다.";
-
-      break;
-
-
-    case "NotReadableError":
-
-      message =
-        "카메라를 다른 앱에서 사용 중이거나 카메라에 접근할 수 없습니다.";
-
-      break;
-
-
-    case "OverconstrainedError":
-
-      message =
-        "현재 기기에서 요청한 카메라 설정을 지원하지 않습니다.";
-
-      break;
-
-
-    case "SecurityError":
-
-      message =
-        "보안 설정 때문에 카메라를 사용할 수 없습니다.";
-
-      break;
-
-  }
-
-
-  CameraManager.running =
-    false;
-
-
-  updateCameraStatus(
-    "ERROR"
-  );
-
-
-  showCameraMessage(
-    message,
-    "error"
-  );
-
-}
-
-
-/* =========================================================
-   25. VISIBILITY CHANGE
-
-   Safari에서 탭을 벗어났다가 돌아올 때
-   상태 관리
-========================================================= */
-
-function handleVisibilityChange() {
-
-  if (
-    document.visibilityState ===
-      "hidden"
-  ) {
-
-    return;
-
-  }
-
-
-  if (
-    CameraManager.running &&
-    CameraManager.video
-  ) {
-
-    CameraManager.video
-      .play()
-      .catch(
-        () => {}
-      );
-
-  }
-
-}
-
-
-/* =========================================================
-   26. GET CAMERA STATE
-========================================================= */
-
-function getCameraState() {
-
-  return {
-
-    running:
-      CameraManager.running,
-
-    facingMode:
-      CameraManager.facingMode,
-
-    fps:
-      CameraManager.fps,
-
-    width:
-      CameraManager.width,
-
-    height:
-      CameraManager.height
-
-  };
-
-}
-
-
-/* =========================================================
-   27. GET CURRENT FRAME
-
-   다른 분석 모듈에서 현재 프레임을
-   가져올 때 사용
-========================================================= */
-
-function getCurrentCameraFrame() {
-
-  const video =
-    CameraManager.video;
-
-
-  if (
-    !video ||
-    !CameraManager.running
-  ) {
-
-    return null;
-
-  }
-
-
-  const canvas =
-    document.createElement(
-      "canvas"
-    );
-
-
-  canvas.width =
-    video.videoWidth;
-
-
-  canvas.height =
-    video.videoHeight;
-
-
-  const ctx =
-    canvas.getContext(
-      "2d"
-    );
-
-
-  ctx.drawImage(
-    video,
-    0,
-    0,
-    canvas.width,
-    canvas.height
-  );
-
-
-  return canvas;
-
-}
-
-
-/* =========================================================
-   28. AUTO INITIALIZE
-========================================================= */
-
-if (
-  document.readyState ===
-    "loading"
-) {
 
   document.addEventListener(
     "DOMContentLoaded",
-    initCamera
+    () => {
+
+      init();
+
+
+      if (document.body) {
+
+        observer.observe(
+          document.body,
+          {
+            childList: true,
+            subtree: true
+          }
+        );
+
+      }
+
+    }
   );
 
-}
 
-else {
+  /* =======================================================
+     PUBLIC API
+  ======================================================= */
 
-  initCamera();
+  return {
 
-}
+    init,
 
+    start,
 
-/* =========================================================
-   29. GLOBAL ACCESS
-========================================================= */
+    stop,
 
-window.CAMERA_CONFIG =
-  CAMERA_CONFIG;
+    switchCamera,
 
-window.CameraManager =
-  CameraManager;
+    getState
 
-window.initCamera =
-  initCamera;
+  };
 
-window.startCamera =
-  startCamera;
-
-window.stopCamera =
-  stopCamera;
-
-window.switchCamera =
-  switchCamera;
-
-window.captureCameraSnapshot =
-  captureCameraSnapshot;
-
-window.getCameraState =
-  getCameraState;
-
-window.getCurrentCameraFrame =
-  getCurrentCameraFrame;
+})();
