@@ -1,0 +1,2540 @@
+/* =========================================================
+   설천고 SPORTS PERFORMANCE ANALYSIS SYSTEM
+   CSS / REPORT.CSS
+   VERSION 1.0
+
+   SEOLCHEON SPORTS PERFORMANCE ANALYSIS REPORT
+
+   - KISS / 스포츠과학 분석자료 스타일
+   - A4 리포트
+   - 선수 정보
+   - 퍼포먼스 점수
+   - 자세분석 이미지
+   - 3D 분석
+   - 엘리트 비교
+   - 육각형 그래프
+   - 피드백
+   - 추천 훈련
+   - PDF / PRINT
+========================================================= */
+
+
+/* =========================================================
+   01. VARIABLES
+========================================================= */
+
+:root {
+
+  --report-bg:
+    #061019;
+
+  --report-panel:
+    #0a1822;
+
+  --report-panel-2:
+    #0d202c;
+
+  --report-line:
+    rgba(125, 190, 215, 0.18);
+
+  --report-line-strong:
+    rgba(110, 210, 235, 0.38);
+
+  --report-text:
+    #edf8fc;
+
+  --report-muted:
+    #8faeba;
+
+  --report-accent:
+    #27d5e8;
+
+  --report-accent-soft:
+    rgba(39, 213, 232, 0.12);
+
+  --report-green:
+    #57e6a3;
+
+  --report-yellow:
+    #f3d765;
+
+  --report-red:
+    #ff7383;
+
+  --report-radius:
+    14px;
+
+  --report-shadow:
+    0 20px 60px rgba(0, 0, 0, 0.28);
+
+}
+
+
+/* =========================================================
+   02. REPORT PREVIEW AREA
+========================================================= */
+
+[data-report-preview] {
+
+  width:
+    100%;
+
+  min-height:
+    400px;
+
+  padding:
+    30px;
+
+  background:
+    #03090e;
+
+  overflow-x:
+    auto;
+
+}
+
+
+/* =========================================================
+   03. MAIN REPORT
+========================================================= */
+
+.performance-report {
+
+  width:
+    min(100%, 1180px);
+
+  margin:
+    0 auto;
+
+  padding:
+    42px;
+
+  color:
+    var(--report-text);
+
+  background:
+
+    radial-gradient(
+      circle at 90% 0%,
+      rgba(28, 159, 190, 0.10),
+      transparent 28%
+    ),
+
+    linear-gradient(
+      180deg,
+      #08141d 0%,
+      #050d14 100%
+    );
+
+  border:
+    1px solid
+    var(--report-line);
+
+  border-radius:
+    20px;
+
+  box-shadow:
+    var(--report-shadow);
+
+  font-family:
+    Inter,
+    Pretendard,
+    "Noto Sans KR",
+    Arial,
+    sans-serif;
+
+}
+
+
+/* =========================================================
+   04. REPORT HEADER
+========================================================= */
+
+.report-header {
+
+  display:
+    flex;
+
+  justify-content:
+    space-between;
+
+  align-items:
+    flex-start;
+
+  gap:
+    30px;
+
+  padding-bottom:
+    28px;
+
+  border-bottom:
+    1px solid
+    var(--report-line-strong);
+
+}
+
+
+.report-brand {
+
+  display:
+    flex;
+
+  align-items:
+    center;
+
+  gap:
+    18px;
+
+}
+
+
+.report-brand-mark {
+
+  width:
+    62px;
+
+  height:
+    62px;
+
+  display:
+    grid;
+
+  place-items:
+    center;
+
+  flex-shrink:
+    0;
+
+  border:
+    1px solid
+    var(--report-line-strong);
+
+  border-radius:
+    15px;
+
+  background:
+    linear-gradient(
+      145deg,
+      rgba(39, 213, 232, 0.18),
+      rgba(39, 213, 232, 0.03)
+    );
+
+  color:
+    var(--report-accent);
+
+  font-size:
+    21px;
+
+  font-weight:
+    900;
+
+  letter-spacing:
+    -1px;
+
+}
+
+
+.report-kicker {
+
+  display:
+    block;
+
+  margin-bottom:
+    6px;
+
+  color:
+    var(--report-accent);
+
+  font-size:
+    11px;
+
+  font-weight:
+    800;
+
+  letter-spacing:
+    1.8px;
+
+}
+
+
+.report-brand h1 {
+
+  margin:
+    0;
+
+  color:
+    #ffffff;
+
+  font-size:
+    clamp(
+      21px,
+      3vw,
+      31px
+    );
+
+  font-weight:
+    850;
+
+  letter-spacing:
+    -1.2px;
+
+}
+
+
+.report-brand p {
+
+  margin:
+    7px 0 0;
+
+  color:
+    var(--report-muted);
+
+  font-size:
+    11px;
+
+  letter-spacing:
+    1.1px;
+
+}
+
+
+.report-meta {
+
+  min-width:
+    190px;
+
+  display:
+    grid;
+
+  grid-template-columns:
+    auto 1fr;
+
+  gap:
+    7px 12px;
+
+  padding:
+    15px;
+
+  background:
+    rgba(255, 255, 255, 0.025);
+
+  border:
+    1px solid
+    var(--report-line);
+
+  border-radius:
+    12px;
+
+}
+
+
+.report-meta span {
+
+  color:
+    var(--report-muted);
+
+  font-size:
+    9px;
+
+  font-weight:
+    700;
+
+  letter-spacing:
+    0.8px;
+
+}
+
+
+.report-meta strong {
+
+  color:
+    #ffffff;
+
+  font-size:
+    10px;
+
+  font-weight:
+    650;
+
+  word-break:
+    break-all;
+
+}
+
+
+/* =========================================================
+   05. REPORT SECTION
+========================================================= */
+
+.report-section {
+
+  padding:
+    34px 0;
+
+  border-bottom:
+    1px solid
+    var(--report-line);
+
+}
+
+
+.report-section:last-of-type {
+
+  border-bottom:
+    none;
+
+}
+
+
+.report-section-title {
+
+  display:
+    flex;
+
+  align-items:
+    center;
+
+  gap:
+    12px;
+
+  margin-bottom:
+    22px;
+
+}
+
+
+.report-section-title > span {
+
+  width:
+    34px;
+
+  height:
+    24px;
+
+  display:
+    grid;
+
+  place-items:
+    center;
+
+  color:
+    var(--report-accent);
+
+  background:
+    var(--report-accent-soft);
+
+  border:
+    1px solid
+    rgba(39, 213, 232, 0.25);
+
+  border-radius:
+    6px;
+
+  font-size:
+    10px;
+
+  font-weight:
+    900;
+
+}
+
+
+.report-section-title h2 {
+
+  margin:
+    0;
+
+  color:
+    #ffffff;
+
+  font-size:
+    17px;
+
+  font-weight:
+    800;
+
+  letter-spacing:
+    -0.4px;
+
+}
+
+
+/* =========================================================
+   06. INFO GRID
+========================================================= */
+
+.report-info-grid {
+
+  display:
+    grid;
+
+  grid-template-columns:
+    repeat(4, minmax(0, 1fr));
+
+  gap:
+    12px;
+
+}
+
+
+.report-info-box {
+
+  min-height:
+    82px;
+
+  display:
+    flex;
+
+  flex-direction:
+    column;
+
+  justify-content:
+    center;
+
+  padding:
+    16px 18px;
+
+  background:
+    rgba(255, 255, 255, 0.025);
+
+  border:
+    1px solid
+    var(--report-line);
+
+  border-radius:
+    11px;
+
+}
+
+
+.report-info-box span {
+
+  margin-bottom:
+    8px;
+
+  color:
+    var(--report-muted);
+
+  font-size:
+    10px;
+
+  font-weight:
+    700;
+
+}
+
+
+.report-info-box strong {
+
+  color:
+    #ffffff;
+
+  font-size:
+    17px;
+
+  font-weight:
+    800;
+
+}
+
+
+/* =========================================================
+   07. PERFORMANCE SUMMARY
+========================================================= */
+
+.report-summary-layout {
+
+  display:
+    grid;
+
+  grid-template-columns:
+    230px 1fr;
+
+  gap:
+    18px;
+
+}
+
+
+.report-main-score {
+
+  min-height:
+    210px;
+
+  display:
+    flex;
+
+  flex-direction:
+    column;
+
+  justify-content:
+    center;
+
+  align-items:
+    center;
+
+  position:
+    relative;
+
+  overflow:
+    hidden;
+
+  background:
+
+    radial-gradient(
+      circle at center,
+      rgba(39, 213, 232, 0.12),
+      transparent 68%
+    ),
+
+    var(--report-panel);
+
+  border:
+    1px solid
+    var(--report-line-strong);
+
+  border-radius:
+    var(--report-radius);
+
+}
+
+
+.report-main-score::after {
+
+  content:
+    "";
+
+  position:
+    absolute;
+
+  width:
+    150px;
+
+  height:
+    150px;
+
+  border:
+    1px solid
+    rgba(39, 213, 232, 0.12);
+
+  border-radius:
+    50%;
+
+}
+
+
+.report-main-score span {
+
+  position:
+    relative;
+
+  z-index:
+    2;
+
+  color:
+    var(--report-muted);
+
+  font-size:
+    9px;
+
+  font-weight:
+    800;
+
+  letter-spacing:
+    1.2px;
+
+}
+
+
+.report-main-score strong {
+
+  position:
+    relative;
+
+  z-index:
+    2;
+
+  margin-top:
+    5px;
+
+  color:
+    #ffffff;
+
+  font-size:
+    62px;
+
+  line-height:
+    1;
+
+  font-weight:
+    900;
+
+  letter-spacing:
+    -4px;
+
+}
+
+
+.report-main-score small {
+
+  position:
+    relative;
+
+  z-index:
+    2;
+
+  margin-top:
+    5px;
+
+  color:
+    var(--report-muted);
+
+  font-size:
+    11px;
+
+}
+
+
+.report-main-score b {
+
+  position:
+    relative;
+
+  z-index:
+    2;
+
+  margin-top:
+    13px;
+
+  padding:
+    5px 12px;
+
+  color:
+    var(--report-accent);
+
+  background:
+    var(--report-accent-soft);
+
+  border-radius:
+    20px;
+
+  font-size:
+    10px;
+
+  letter-spacing:
+    0.8px;
+
+}
+
+
+.report-summary-copy {
+
+  min-height:
+    210px;
+
+  display:
+    flex;
+
+  flex-direction:
+    column;
+
+  justify-content:
+    center;
+
+  padding:
+    30px;
+
+  background:
+    var(--report-panel);
+
+  border:
+    1px solid
+    var(--report-line);
+
+  border-radius:
+    var(--report-radius);
+
+}
+
+
+.report-summary-copy h3 {
+
+  margin:
+    0 0 12px;
+
+  color:
+    var(--report-accent);
+
+  font-size:
+    11px;
+
+  font-weight:
+    850;
+
+  letter-spacing:
+    1.4px;
+
+}
+
+
+.report-summary-copy p {
+
+  max-width:
+    650px;
+
+  margin:
+    0;
+
+  color:
+    #e6f2f6;
+
+  font-size:
+    17px;
+
+  line-height:
+    1.75;
+
+  font-weight:
+    650;
+
+}
+
+
+/* =========================================================
+   08. ANALYSIS IMAGES
+========================================================= */
+
+.report-image-grid {
+
+  display:
+    grid;
+
+  grid-template-columns:
+    repeat(3, minmax(0, 1fr));
+
+  gap:
+    13px;
+
+}
+
+
+.report-analysis-image {
+
+  min-width:
+    0;
+
+  margin:
+    0;
+
+  overflow:
+    hidden;
+
+  background:
+    var(--report-panel);
+
+  border:
+    1px solid
+    var(--report-line);
+
+  border-radius:
+    12px;
+
+}
+
+
+.report-analysis-image img {
+
+  width:
+    100%;
+
+  height:
+    245px;
+
+  display:
+    block;
+
+  object-fit:
+    contain;
+
+  background:
+    #02080c;
+
+}
+
+
+.report-analysis-image figcaption {
+
+  padding:
+    12px 15px;
+
+  color:
+    #ffffff;
+
+  border-top:
+    1px solid
+    var(--report-line);
+
+  font-size:
+    11px;
+
+  font-weight:
+    750;
+
+}
+
+
+.report-image-placeholder {
+
+  height:
+    290px;
+
+  display:
+    flex;
+
+  flex-direction:
+    column;
+
+  justify-content:
+    center;
+
+  align-items:
+    center;
+
+  gap:
+    8px;
+
+  background:
+
+    linear-gradient(
+      135deg,
+      rgba(39, 213, 232, 0.025),
+      rgba(255, 255, 255, 0.015)
+    );
+
+}
+
+
+.report-image-placeholder span {
+
+  color:
+    rgba(255, 255, 255, 0.2);
+
+  font-size:
+    10px;
+
+  font-weight:
+    900;
+
+  letter-spacing:
+    1.5px;
+
+}
+
+
+.report-image-placeholder strong {
+
+  color:
+    var(--report-muted);
+
+  font-size:
+    12px;
+
+}
+
+
+/* =========================================================
+   09. METRIC GRID
+========================================================= */
+
+.report-metric-grid {
+
+  display:
+    grid;
+
+  grid-template-columns:
+    repeat(
+      auto-fit,
+      minmax(145px, 1fr)
+    );
+
+  gap:
+    10px;
+
+}
+
+
+.report-metric-card {
+
+  min-height:
+    94px;
+
+  display:
+    flex;
+
+  flex-direction:
+    column;
+
+  justify-content:
+    center;
+
+  padding:
+    17px;
+
+  background:
+    var(--report-panel);
+
+  border:
+    1px solid
+    var(--report-line);
+
+  border-radius:
+    11px;
+
+}
+
+
+.report-metric-card span {
+
+  margin-bottom:
+    8px;
+
+  color:
+    var(--report-muted);
+
+  font-size:
+    10px;
+
+  font-weight:
+    650;
+
+}
+
+
+.report-metric-card strong {
+
+  color:
+    #ffffff;
+
+  font-size:
+    21px;
+
+  font-weight:
+    850;
+
+}
+
+
+/* =========================================================
+   10. BIATHLON TECHNIQUE TIMELINE
+========================================================= */
+
+.report-technique-timeline {
+
+  display:
+    grid;
+
+  grid-template-columns:
+    repeat(
+      auto-fit,
+      minmax(160px, 1fr)
+    );
+
+  gap:
+    9px;
+
+  margin-top:
+    14px;
+
+}
+
+
+.technique-timeline-item {
+
+  position:
+    relative;
+
+  padding:
+    14px 15px 14px 20px;
+
+  background:
+    rgba(39, 213, 232, 0.05);
+
+  border:
+    1px solid
+    rgba(39, 213, 232, 0.14);
+
+  border-radius:
+    9px;
+
+}
+
+
+.technique-timeline-item::before {
+
+  content:
+    "";
+
+  position:
+    absolute;
+
+  left:
+    9px;
+
+  top:
+    50%;
+
+  width:
+    4px;
+
+  height:
+    28px;
+
+  transform:
+    translateY(-50%);
+
+  background:
+    var(--report-accent);
+
+  border-radius:
+    5px;
+
+}
+
+
+.technique-timeline-item strong {
+
+  display:
+    block;
+
+  color:
+    #ffffff;
+
+  font-size:
+    12px;
+
+}
+
+
+.technique-timeline-item span {
+
+  display:
+    block;
+
+  margin-top:
+    5px;
+
+  color:
+    var(--report-muted);
+
+  font-size:
+    10px;
+
+}
+
+
+/* =========================================================
+   11. BAR PATH
+========================================================= */
+
+.report-path-canvas {
+
+  width:
+    100%;
+
+  height:
+    330px;
+
+  display:
+    block;
+
+  margin-top:
+    15px;
+
+  background:
+    #02090e;
+
+  border:
+    1px solid
+    var(--report-line);
+
+  border-radius:
+    12px;
+
+}
+
+
+/* =========================================================
+   12. ELITE HEADER
+========================================================= */
+
+.report-elite-header {
+
+  display:
+    grid;
+
+  grid-template-columns:
+    1fr 1fr;
+
+  gap:
+    12px;
+
+  margin-bottom:
+    14px;
+
+}
+
+
+.report-elite-header > div {
+
+  padding:
+    18px;
+
+  background:
+    var(--report-panel);
+
+  border:
+    1px solid
+    var(--report-line);
+
+  border-radius:
+    10px;
+
+}
+
+
+.report-elite-header span {
+
+  display:
+    block;
+
+  margin-bottom:
+    7px;
+
+  color:
+    var(--report-muted);
+
+  font-size:
+    9px;
+
+  font-weight:
+    800;
+
+  letter-spacing:
+    1px;
+
+}
+
+
+.report-elite-header strong {
+
+  color:
+    #ffffff;
+
+  font-size:
+    18px;
+
+  font-weight:
+    850;
+
+}
+
+
+/* =========================================================
+   13. ELITE TABLE
+========================================================= */
+
+.report-comparison-table {
+
+  overflow:
+    hidden;
+
+  border:
+    1px solid
+    var(--report-line);
+
+  border-radius:
+    11px;
+
+}
+
+
+.comparison-table-head,
+.comparison-table-row {
+
+  display:
+    grid;
+
+  grid-template-columns:
+    1.4fr repeat(3, 1fr);
+
+  align-items:
+    center;
+
+  min-height:
+    48px;
+
+  padding:
+    0 18px;
+
+}
+
+
+.comparison-table-head {
+
+  background:
+    rgba(39, 213, 232, 0.08);
+
+  color:
+    var(--report-muted);
+
+  font-size:
+    9px;
+
+  font-weight:
+    850;
+
+  letter-spacing:
+    0.7px;
+
+}
+
+
+.comparison-table-row {
+
+  border-top:
+    1px solid
+    var(--report-line);
+
+  background:
+    rgba(255, 255, 255, 0.015);
+
+}
+
+
+.comparison-table-row span {
+
+  color:
+    #dcebf0;
+
+  font-size:
+    11px;
+
+}
+
+
+.comparison-table-row strong {
+
+  color:
+    #ffffff;
+
+  font-size:
+    12px;
+
+}
+
+
+/* =========================================================
+   14. RADAR
+========================================================= */
+
+.report-radar-layout {
+
+  display:
+    grid;
+
+  grid-template-columns:
+    minmax(0, 1.5fr)
+    minmax(220px, 0.7fr);
+
+  gap:
+    18px;
+
+  align-items:
+    stretch;
+
+}
+
+
+#report-radar-canvas {
+
+  width:
+    100% !important;
+
+  height:
+    430px !important;
+
+  padding:
+    15px;
+
+  background:
+    var(--report-panel);
+
+  border:
+    1px solid
+    var(--report-line);
+
+  border-radius:
+    var(--report-radius);
+
+}
+
+
+.report-radar-values {
+
+  display:
+    grid;
+
+  grid-template-columns:
+    1fr 1fr;
+
+  gap:
+    9px;
+
+}
+
+
+.report-radar-values > div {
+
+  display:
+    flex;
+
+  flex-direction:
+    column;
+
+  justify-content:
+    center;
+
+  padding:
+    14px;
+
+  background:
+    var(--report-panel);
+
+  border:
+    1px solid
+    var(--report-line);
+
+  border-radius:
+    10px;
+
+}
+
+
+.report-radar-values span {
+
+  color:
+    var(--report-muted);
+
+  font-size:
+    9px;
+
+}
+
+
+.report-radar-values strong {
+
+  margin-top:
+    5px;
+
+  color:
+    #ffffff;
+
+  font-size:
+    20px;
+
+  font-weight:
+    850;
+
+}
+
+
+/* =========================================================
+   15. PRIORITY
+========================================================= */
+
+.report-priority-list {
+
+  display:
+    grid;
+
+  grid-template-columns:
+    repeat(
+      auto-fit,
+      minmax(180px, 1fr)
+    );
+
+  gap:
+    10px;
+
+}
+
+
+.report-priority {
+
+  display:
+    flex;
+
+  align-items:
+    center;
+
+  gap:
+    13px;
+
+  padding:
+    15px;
+
+  background:
+    var(--report-panel);
+
+  border:
+    1px solid
+    var(--report-line);
+
+  border-radius:
+    10px;
+
+}
+
+
+.report-priority > strong {
+
+  width:
+    35px;
+
+  height:
+    35px;
+
+  display:
+    grid;
+
+  place-items:
+    center;
+
+  flex-shrink:
+    0;
+
+  color:
+    var(--report-accent);
+
+  background:
+    var(--report-accent-soft);
+
+  border-radius:
+    8px;
+
+  font-size:
+    14px;
+
+}
+
+
+.report-priority div {
+
+  display:
+    flex;
+
+  flex-direction:
+    column;
+
+  gap:
+    4px;
+
+}
+
+
+.report-priority span {
+
+  color:
+    #ffffff;
+
+  font-size:
+    11px;
+
+  font-weight:
+    700;
+
+}
+
+
+.report-priority b {
+
+  color:
+    var(--report-muted);
+
+  font-size:
+    10px;
+
+}
+
+
+/* =========================================================
+   16. FEEDBACK
+========================================================= */
+
+.report-feedback-list {
+
+  display:
+    grid;
+
+  gap:
+    9px;
+
+}
+
+
+.report-feedback-item {
+
+  display:
+    grid;
+
+  grid-template-columns:
+    90px 1fr;
+
+  gap:
+    15px;
+
+  padding:
+    16px 18px;
+
+  background:
+    rgba(255, 255, 255, 0.02);
+
+  border:
+    1px solid
+    var(--report-line);
+
+  border-radius:
+    10px;
+
+}
+
+
+.report-feedback-item > span {
+
+  color:
+    var(--report-accent);
+
+  font-size:
+    9px;
+
+  font-weight:
+    900;
+
+  letter-spacing:
+    1px;
+
+}
+
+
+.report-feedback-item p {
+
+  margin:
+    0;
+
+  color:
+    #dcebef;
+
+  font-size:
+    12px;
+
+  line-height:
+    1.65;
+
+}
+
+
+/* =========================================================
+   17. TRAINING
+========================================================= */
+
+.report-training-grid {
+
+  display:
+    grid;
+
+  grid-template-columns:
+    repeat(
+      auto-fit,
+      minmax(210px, 1fr)
+    );
+
+  gap:
+    10px;
+
+}
+
+
+.report-training-card {
+
+  min-height:
+    90px;
+
+  display:
+    flex;
+
+  align-items:
+    center;
+
+  gap:
+    14px;
+
+  padding:
+    17px;
+
+  background:
+
+    linear-gradient(
+      135deg,
+      rgba(39, 213, 232, 0.07),
+      rgba(255, 255, 255, 0.015)
+    );
+
+  border:
+    1px solid
+    var(--report-line);
+
+  border-radius:
+    11px;
+
+}
+
+
+.report-training-card span {
+
+  color:
+    rgba(39, 213, 232, 0.42);
+
+  font-size:
+    24px;
+
+  font-weight:
+    900;
+
+}
+
+
+.report-training-card strong {
+
+  color:
+    #ffffff;
+
+  font-size:
+    12px;
+
+  line-height:
+    1.5;
+
+}
+
+
+/* =========================================================
+   18. EMPTY STATE
+========================================================= */
+
+.report-empty {
+
+  padding:
+    25px;
+
+  color:
+    var(--report-muted);
+
+  text-align:
+    center;
+
+  background:
+    rgba(255, 255, 255, 0.02);
+
+  border:
+    1px dashed
+    var(--report-line-strong);
+
+  border-radius:
+    10px;
+
+  font-size:
+    11px;
+
+}
+
+
+/* =========================================================
+   19. BODY TEXT
+========================================================= */
+
+.report-body-text {
+
+  margin:
+    0;
+
+  padding:
+    20px;
+
+  color:
+    #dcebf0;
+
+  background:
+    var(--report-panel);
+
+  border:
+    1px solid
+    var(--report-line);
+
+  border-radius:
+    10px;
+
+  font-size:
+    12px;
+
+  line-height:
+    1.75;
+
+}
+
+
+/* =========================================================
+   20. FOOTER
+========================================================= */
+
+.report-footer {
+
+  display:
+    grid;
+
+  grid-template-columns:
+    1fr 2fr auto;
+
+  gap:
+    20px;
+
+  align-items:
+    end;
+
+  margin-top:
+    30px;
+
+  padding-top:
+    25px;
+
+  border-top:
+    1px solid
+    var(--report-line-strong);
+
+}
+
+
+.report-footer div {
+
+  display:
+    flex;
+
+  flex-direction:
+    column;
+
+}
+
+
+.report-footer strong {
+
+  color:
+    #ffffff;
+
+  font-size:
+    15px;
+
+}
+
+
+.report-footer span {
+
+  margin-top:
+    3px;
+
+  color:
+    var(--report-accent);
+
+  font-size:
+    8px;
+
+  font-weight:
+    750;
+
+  letter-spacing:
+    0.8px;
+
+}
+
+
+.report-footer p {
+
+  margin:
+    0;
+
+  color:
+    var(--report-muted);
+
+  font-size:
+    9px;
+
+  line-height:
+    1.55;
+
+}
+
+
+.report-footer small {
+
+  color:
+    rgba(255, 255, 255, 0.28);
+
+  font-size:
+    8px;
+
+}
+
+
+/* =========================================================
+   21. SAVED REPORT LIST
+========================================================= */
+
+.saved-report-card {
+
+  display:
+    flex;
+
+  justify-content:
+    space-between;
+
+  align-items:
+    center;
+
+  gap:
+    15px;
+
+  padding:
+    14px 16px;
+
+  margin-bottom:
+    8px;
+
+  background:
+    #0a1822;
+
+  border:
+    1px solid
+    var(--report-line);
+
+  border-radius:
+    10px;
+
+}
+
+
+.saved-report-card > div:first-child {
+
+  display:
+    flex;
+
+  align-items:
+    center;
+
+  gap:
+    12px;
+
+}
+
+
+.saved-report-card span,
+.saved-report-card small {
+
+  color:
+    var(--report-muted);
+
+  font-size:
+    10px;
+
+}
+
+
+.saved-report-card strong {
+
+  color:
+    #ffffff;
+
+  font-size:
+    12px;
+
+}
+
+
+.saved-report-card button {
+
+  padding:
+    7px 11px;
+
+  color:
+    #eaf8fb;
+
+  background:
+    rgba(255, 255, 255, 0.04);
+
+  border:
+    1px solid
+    var(--report-line);
+
+  border-radius:
+    7px;
+
+  cursor:
+    pointer;
+
+}
+
+
+/* =========================================================
+   22. REPORT MESSAGE
+========================================================= */
+
+[data-report-message] {
+
+  margin:
+    10px 0;
+
+  padding:
+    11px 14px;
+
+  border-radius:
+    8px;
+
+  font-size:
+    11px;
+
+}
+
+
+[data-report-message][data-type="success"] {
+
+  color:
+    #b9ffdb;
+
+  background:
+    rgba(60, 220, 140, 0.08);
+
+  border:
+    1px solid
+    rgba(60, 220, 140, 0.18);
+
+}
+
+
+[data-report-message][data-type="error"] {
+
+  color:
+    #ffbdc5;
+
+  background:
+    rgba(255, 90, 110, 0.08);
+
+  border:
+    1px solid
+    rgba(255, 90, 110, 0.18);
+
+}
+
+
+/* =========================================================
+   23. TABLET
+========================================================= */
+
+@media (
+  max-width: 900px
+) {
+
+  [data-report-preview] {
+
+    padding:
+      15px;
+
+  }
+
+
+  .performance-report {
+
+    padding:
+      25px;
+
+  }
+
+
+  .report-header {
+
+    flex-direction:
+      column;
+
+  }
+
+
+  .report-meta {
+
+    width:
+      100%;
+
+  }
+
+
+  .report-info-grid {
+
+    grid-template-columns:
+      repeat(
+        2,
+        minmax(0, 1fr)
+      );
+
+  }
+
+
+  .report-summary-layout {
+
+    grid-template-columns:
+      1fr;
+
+  }
+
+
+  .report-image-grid {
+
+    grid-template-columns:
+      1fr;
+
+  }
+
+
+  .report-analysis-image img {
+
+    height:
+      360px;
+
+  }
+
+
+  .report-radar-layout {
+
+    grid-template-columns:
+      1fr;
+
+  }
+
+}
+
+
+/* =========================================================
+   24. MOBILE
+========================================================= */
+
+@media (
+  max-width: 600px
+) {
+
+  [data-report-preview] {
+
+    padding:
+      7px;
+
+  }
+
+
+  .performance-report {
+
+    padding:
+      17px;
+
+    border-radius:
+      12px;
+
+  }
+
+
+  .report-brand {
+
+    align-items:
+      flex-start;
+
+  }
+
+
+  .report-brand-mark {
+
+    width:
+      48px;
+
+    height:
+      48px;
+
+    font-size:
+      16px;
+
+  }
+
+
+  .report-brand h1 {
+
+    font-size:
+      19px;
+
+  }
+
+
+  .report-info-grid {
+
+    grid-template-columns:
+      1fr 1fr;
+
+  }
+
+
+  .report-info-box {
+
+    min-height:
+      70px;
+
+    padding:
+      13px;
+
+  }
+
+
+  .report-info-box strong {
+
+    font-size:
+      14px;
+
+  }
+
+
+  .report-image-grid {
+
+    grid-template-columns:
+      1fr;
+
+  }
+
+
+  .report-analysis-image img {
+
+    height:
+      250px;
+
+  }
+
+
+  .report-elite-header {
+
+    grid-template-columns:
+      1fr;
+
+  }
+
+
+  .comparison-table-head,
+  .comparison-table-row {
+
+    grid-template-columns:
+      1.3fr
+      repeat(3, 0.8fr);
+
+    padding:
+      0 10px;
+
+  }
+
+
+  .report-radar-values {
+
+    grid-template-columns:
+      repeat(
+        3,
+        1fr
+      );
+
+  }
+
+
+  .report-feedback-item {
+
+    grid-template-columns:
+      1fr;
+
+    gap:
+      6px;
+
+  }
+
+
+  .report-footer {
+
+    grid-template-columns:
+      1fr;
+
+  }
+
+}
+
+
+/* =========================================================
+   25. PRINT / PDF
+========================================================= */
+
+@media print {
+
+  @page {
+
+    size:
+      A4 portrait;
+
+    margin:
+      10mm;
+
+  }
+
+
+  html,
+  body {
+
+    margin:
+      0 !important;
+
+    padding:
+      0 !important;
+
+    background:
+      #ffffff !important;
+
+  }
+
+
+  body * {
+
+    visibility:
+      hidden;
+
+  }
+
+
+  #performance-report-print,
+  #performance-report-print * {
+
+    visibility:
+      visible;
+
+  }
+
+
+  #performance-report-print {
+
+    position:
+      absolute;
+
+    left:
+      0;
+
+    top:
+      0;
+
+    width:
+      100%;
+
+    max-width:
+      none;
+
+    margin:
+      0;
+
+    padding:
+      0;
+
+    color:
+      #111111;
+
+    background:
+      #ffffff;
+
+    border:
+      none;
+
+    border-radius:
+      0;
+
+    box-shadow:
+      none;
+
+  }
+
+
+  .report-header {
+
+    border-color:
+      #cbd5da;
+
+  }
+
+
+  .report-brand h1,
+  .report-info-box strong,
+  .report-summary-copy p,
+  .report-metric-card strong,
+  .report-elite-header strong,
+  .comparison-table-row strong,
+  .report-priority span,
+  .report-training-card strong {
+
+    color:
+      #111111 !important;
+
+  }
+
+
+  .report-brand p,
+  .report-meta span,
+  .report-info-box span,
+  .report-metric-card span,
+  .report-feedback-item p,
+  .report-footer p {
+
+    color:
+      #52616a !important;
+
+  }
+
+
+  .report-section {
+
+    border-color:
+      #d9e1e5;
+
+    break-inside:
+      avoid;
+
+  }
+
+
+  .report-info-box,
+  .report-summary-copy,
+  .report-main-score,
+  .report-metric-card,
+  .report-analysis-image,
+  .report-elite-header > div,
+  .report-comparison-table,
+  #report-radar-canvas,
+  .report-radar-values > div,
+  .report-priority,
+  .report-feedback-item,
+  .report-training-card {
+
+    background:
+      #ffffff !important;
+
+    border-color:
+      #d4dde1 !important;
+
+    box-shadow:
+      none !important;
+
+    break-inside:
+      avoid;
+
+  }
+
+
+  .report-main-score strong {
+
+    color:
+      #111111 !important;
+
+  }
+
+
+  .report-image-placeholder {
+
+    background:
+      #f5f7f8 !important;
+
+  }
+
+
+  .comparison-table-head {
+
+    background:
+      #eef3f5 !important;
+
+  }
+
+
+  .comparison-table-row {
+
+    background:
+      #ffffff !important;
+
+    border-color:
+      #dce3e7 !important;
+
+  }
+
+
+  .report-analysis-image img {
+
+    max-height:
+      220px;
+
+  }
+
+
+  #report-radar-canvas {
+
+    height:
+      340px !important;
+
+  }
+
+
+  .report-footer {
+
+    border-color:
+      #cbd5da;
+
+  }
+
+
+  button {
+
+    display:
+      none !important;
+
+  }
+
+}
+
+
+/* =========================================================
+   26. PAGE BREAK HELPERS
+========================================================= */
+
+.report-page-break {
+
+  break-before:
+    page;
+
+  page-break-before:
+    always;
+
+}
+
+
+.report-no-break {
+
+  break-inside:
+    avoid;
+
+  page-break-inside:
+    avoid;
+
+}
