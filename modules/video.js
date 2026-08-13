@@ -1,2022 +1,1317 @@
 /* =========================================================
    설천고 SPORTS PERFORMANCE ANALYSIS SYSTEM
-   MODULES / VIDEO.JS
-   VERSION 1.0
+   VIDEO ANALYSIS MODULE
+
+   기능
+   - 영상 불러오기
+   - 재생 / 일시정지
+   - 슬로모션
+     0.1x / 0.25x / 0.5x / 0.75x / 1.0x
+   - 프레임 단위 이동
+   - 타임라인 이동
+   - 현재시간 / 전체시간
+   - 분석 장면 캡처
+   - 카메라와 영상 분석 충돌 방지
 ========================================================= */
 
 "use strict";
 
 
-/* =========================================================
-   01. CONFIG
-========================================================= */
+window.SeolcheonVideo = (() => {
 
-const VIDEO_CONFIG = {
+  /* =====================================================
+     STATE
+  ===================================================== */
 
-  defaultFPS: 30,
+  let video = null;
 
-  playbackRates: [
-    0.25,
-    0.5,
-    1,
-    1.5,
-    2
-  ],
+  let uploadInput = null;
 
-  snapshotQuality: 0.92,
+  let progress = null;
 
-  supportedTypes: [
-    "video/mp4",
-    "video/webm",
-    "video/quicktime",
-    "video/x-m4v"
-  ]
+  let currentTimeLabel = null;
 
-};
+  let totalTimeLabel = null;
 
+  let objectURL = null;
 
-/* =========================================================
-   02. STATE
-========================================================= */
+  let videoFPS = 30;
 
-const VideoManager = {
+  let videoLoaded = false;
 
-  initialized: false,
 
-  video: null,
+  /* =====================================================
+     ELEMENT
+  ===================================================== */
 
-  file: null,
+  function getElements() {
 
-  objectURL: null,
-
-  loaded: false,
-
-  playing: false,
-
-  duration: 0,
-
-  currentTime: 0,
-
-  playbackRate: 1,
-
-  estimatedFPS:
-    VIDEO_CONFIG.defaultFPS,
-
-  segmentStart: null,
-
-  segmentEnd: null,
-
-  animationFrame: null
-
-};
-
-
-/* =========================================================
-   03. INITIALIZE
-========================================================= */
-
-function initVideo() {
-
-  if (VideoManager.initialized) {
-    return;
-  }
-
-  VideoManager.initialized = true;
-
-  bindVideoEvents();
-
-  console.log(
-    "[VIDEO] Video analysis module ready"
-  );
-
-}
-
-
-/* =========================================================
-   04. EVENT BINDING
-========================================================= */
-
-function bindVideoEvents() {
-
-  document.addEventListener(
-    "click",
-    handleVideoClick
-  );
-
-
-  document.addEventListener(
-    "change",
-    handleVideoChange
-  );
-
-
-  document.addEventListener(
-    "input",
-    handleVideoInput
-  );
-
-}
-
-
-/* =========================================================
-   05. CLICK EVENTS
-========================================================= */
-
-function handleVideoClick(event) {
-
-  const choose =
-    event.target.closest(
-      [
-        "[data-action='video-select']",
-        "#video-select"
-      ].join(",")
-    );
-
-
-  if (choose) {
-
-    event.preventDefault();
-
-    openVideoPicker();
-
-    return;
-  }
-
-
-  const play =
-    event.target.closest(
-      [
-        "[data-action='video-play']",
-        "#video-play"
-      ].join(",")
-    );
-
-
-  if (play) {
-
-    event.preventDefault();
-
-    playAnalysisVideo();
-
-    return;
-  }
-
-
-  const pause =
-    event.target.closest(
-      [
-        "[data-action='video-pause']",
-        "#video-pause"
-      ].join(",")
-    );
-
-
-  if (pause) {
-
-    event.preventDefault();
-
-    pauseAnalysisVideo();
-
-    return;
-  }
-
-
-  const toggle =
-    event.target.closest(
-      "[data-action='video-toggle']"
-    );
-
-
-  if (toggle) {
-
-    event.preventDefault();
-
-    toggleAnalysisVideo();
-
-    return;
-  }
-
-
-  const slow025 =
-    event.target.closest(
-      "[data-action='speed-025']"
-    );
-
-
-  if (slow025) {
-
-    setVideoSpeed(0.25);
-
-    return;
-  }
-
-
-  const slow05 =
-    event.target.closest(
-      [
-        "[data-action='speed-05']",
-        "#video-slowmotion"
-      ].join(",")
-    );
-
-
-  if (slow05) {
-
-    setVideoSpeed(0.5);
-
-    return;
-  }
-
-
-  const normal =
-    event.target.closest(
-      "[data-action='speed-1']"
-    );
-
-
-  if (normal) {
-
-    setVideoSpeed(1);
-
-    return;
-  }
-
-
-  const previousFrame =
-    event.target.closest(
-      "[data-action='previous-frame']"
-    );
-
-
-  if (previousFrame) {
-
-    stepVideoFrame(-1);
-
-    return;
-  }
-
-
-  const nextFrame =
-    event.target.closest(
-      "[data-action='next-frame']"
-    );
-
-
-  if (nextFrame) {
-
-    stepVideoFrame(1);
-
-    return;
-  }
-
-
-  const snapshot =
-    event.target.closest(
-      "[data-action='video-snapshot']"
-    );
-
-
-  if (snapshot) {
-
-    captureVideoFrame();
-
-    return;
-  }
-
-
-  const segmentStart =
-    event.target.closest(
-      "[data-action='segment-start']"
-    );
-
-
-  if (segmentStart) {
-
-    setSegmentStart();
-
-    return;
-  }
-
-
-  const segmentEnd =
-    event.target.closest(
-      "[data-action='segment-end']"
-    );
-
-
-  if (segmentEnd) {
-
-    setSegmentEnd();
-
-    return;
-  }
-
-
-  const clearSegment =
-    event.target.closest(
-      "[data-action='segment-clear']"
-    );
-
-
-  if (clearSegment) {
-
-    clearVideoSegment();
-
-  }
-
-}
-
-
-/* =========================================================
-   06. CHANGE EVENT
-========================================================= */
-
-function handleVideoChange(event) {
-
-  if (
-    event.target.matches(
-      [
-        "#video-file",
-        "#analysis-video-file",
-        "[data-video-file]"
-      ].join(",")
-    )
-  ) {
-
-    const file =
-      event.target.files?.[0];
-
-
-    if (file) {
-
-      loadAnalysisVideo(file);
-
-    }
-
-  }
-
-}
-
-
-/* =========================================================
-   07. TIMELINE INPUT
-========================================================= */
-
-function handleVideoInput(event) {
-
-  if (
-    event.target.matches(
-      [
-        "#video-timeline",
-        "[data-video-timeline]"
-      ].join(",")
-    )
-  ) {
-
-    seekAnalysisVideo(
-      Number(
-        event.target.value
-      )
-    );
-
-  }
-
-}
-
-
-/* =========================================================
-   08. FIND VIDEO ELEMENT
-========================================================= */
-
-function findAnalysisVideo() {
-
-  return (
-
-    document.getElementById(
-      "analysis-video"
-    ) ||
-
-    document.getElementById(
-      "uploaded-video"
-    ) ||
-
-    document.querySelector(
-      "[data-analysis-video]"
-    )
-
-  );
-
-}
-
-
-/* =========================================================
-   09. FIND FILE INPUT
-========================================================= */
-
-function findVideoFileInput() {
-
-  return (
-
-    document.getElementById(
-      "video-file"
-    ) ||
-
-    document.getElementById(
-      "analysis-video-file"
-    ) ||
-
-    document.querySelector(
-      "[data-video-file]"
-    )
-
-  );
-
-}
-
-
-/* =========================================================
-   10. OPEN PICKER
-========================================================= */
-
-function openVideoPicker() {
-
-  const input =
-    findVideoFileInput();
-
-
-  if (!input) {
-
-    showVideoMessage(
-      "영상 선택 입력창을 찾을 수 없습니다.",
-      "error"
-    );
-
-    return;
-  }
-
-
-  input.click();
-
-}
-
-
-/* =========================================================
-   11. LOAD VIDEO
-========================================================= */
-
-async function loadAnalysisVideo(file) {
-
-  if (!file) {
-    return false;
-  }
-
-
-  if (
-    file.type &&
-    !file.type.startsWith("video/")
-  ) {
-
-    showVideoMessage(
-      "영상 파일을 선택해주세요.",
-      "error"
-    );
-
-    return false;
-  }
-
-
-  const video =
-    findAnalysisVideo();
-
-
-  if (!video) {
-
-    showVideoMessage(
-      "영상 분석 화면을 찾을 수 없습니다.",
-      "error"
-    );
-
-    return false;
-  }
-
-
-  releaseVideoURL();
-
-
-  const url =
-    URL.createObjectURL(file);
-
-
-  VideoManager.file =
-    file;
-
-  VideoManager.objectURL =
-    url;
-
-  VideoManager.video =
-    video;
-
-  VideoManager.loaded =
-    false;
-
-  VideoManager.segmentStart =
-    null;
-
-  VideoManager.segmentEnd =
-    null;
-
-
-  video.src =
-    url;
-
-
-  video.preload =
-    "metadata";
-
-
-  video.playsInline =
-    true;
-
-
-  video.setAttribute(
-    "playsinline",
-    ""
-  );
-
-
-  showVideoMessage(
-    "영상 불러오는 중...",
-    "loading"
-  );
-
-
-  try {
-
-    await waitForAnalysisVideo(
-      video
-    );
-
-
-    VideoManager.loaded =
-      true;
-
-
-    VideoManager.duration =
-      Number.isFinite(
-        video.duration
-      )
-        ? video.duration
-        : 0;
-
-
-    VideoManager.currentTime =
-      0;
-
-
-    setVideoSpeed(1);
-
-
-    updateVideoUI();
-
-
-    showVideoMessage(
-      "영상 분석 준비 완료",
-      "success"
-    );
-
-
-    document.dispatchEvent(
-      new CustomEvent(
-        "video:loaded",
-        {
-          detail: {
-
-            video,
-
-            file,
-
-            duration:
-              VideoManager.duration,
-
-            width:
-              video.videoWidth,
-
-            height:
-              video.videoHeight
-
-          }
-        }
-      )
-    );
-
-
-    return true;
-
-  }
-
-  catch (error) {
-
-    console.error(
-      "[VIDEO]",
-      error
-    );
-
-
-    showVideoMessage(
-      "영상을 불러오지 못했습니다.",
-      "error"
-    );
-
-
-    return false;
-
-  }
-
-}
-
-
-/* =========================================================
-   12. WAIT VIDEO
-========================================================= */
-
-function waitForAnalysisVideo(video) {
-
-  return new Promise(
-    (resolve, reject) => {
-
-      if (
-        video.readyState >= 1 &&
-        video.videoWidth > 0
-      ) {
-
-        resolve();
-
-        return;
-      }
-
-
-      const loaded = () => {
-
-        cleanup();
-
-        resolve();
-
-      };
-
-
-      const failed = () => {
-
-        cleanup();
-
-        reject(
-          new Error(
-            "Video metadata load failed"
-          )
-        );
-
-      };
-
-
-      const cleanup = () => {
-
-        video.removeEventListener(
-          "loadedmetadata",
-          loaded
-        );
-
-        video.removeEventListener(
-          "error",
-          failed
-        );
-
-      };
-
-
-      video.addEventListener(
-        "loadedmetadata",
-        loaded
+    video =
+      document.querySelector(
+        "[data-analysis-video]"
       );
 
 
-      video.addEventListener(
-        "error",
-        failed
+    uploadInput =
+      document.querySelector(
+        "[data-video-upload]"
       );
 
-    }
-  );
 
-}
-
-
-/* =========================================================
-   13. PLAY
-========================================================= */
-
-async function playAnalysisVideo() {
-
-  const video =
-    VideoManager.video ||
-    findAnalysisVideo();
+    progress =
+      document.querySelector(
+        "[data-video-progress]"
+      );
 
 
-  if (
-    !video ||
-    !VideoManager.loaded
-  ) {
-
-    showVideoMessage(
-      "먼저 분석할 영상을 선택해주세요.",
-      "error"
-    );
-
-    return;
-  }
+    currentTimeLabel =
+      document.querySelector(
+        "[data-current-time]"
+      );
 
 
-  try {
-
-    await video.play();
-
-
-    VideoManager.playing =
-      true;
-
-
-    startVideoAnalysisLoop();
-
-
-    updateVideoStatus(
-      "PLAYING"
-    );
+    totalTimeLabel =
+      document.querySelector(
+        "[data-total-time]"
+      );
 
   }
 
-  catch (error) {
 
-    console.error(
-      "[VIDEO] 재생 실패",
-      error
-    );
+  /* =====================================================
+     TIME FORMAT
+  ===================================================== */
 
-  }
-
-}
-
-
-/* =========================================================
-   14. PAUSE
-========================================================= */
-
-function pauseAnalysisVideo() {
-
-  const video =
-    VideoManager.video;
-
-
-  if (!video) {
-    return;
-  }
-
-
-  video.pause();
-
-
-  VideoManager.playing =
-    false;
-
-
-  cancelVideoAnalysisLoop();
-
-
-  updateVideoStatus(
-    "PAUSED"
-  );
-
-
-  /*
-     멈춘 정확한 프레임도 분석 가능
-  */
-
-  dispatchVideoFrame();
-
-}
-
-
-/* =========================================================
-   15. TOGGLE
-========================================================= */
-
-function toggleAnalysisVideo() {
-
-  if (
-    VideoManager.playing
-  ) {
-
-    pauseAnalysisVideo();
-
-  }
-
-  else {
-
-    playAnalysisVideo();
-
-  }
-
-}
-
-
-/* =========================================================
-   16. SPEED
-========================================================= */
-
-function setVideoSpeed(rate) {
-
-  const video =
-    VideoManager.video ||
-    findAnalysisVideo();
-
-
-  if (!video) {
-    return;
-  }
-
-
-  const safeRate =
-    VIDEO_CONFIG.playbackRates
-      .includes(rate)
-        ? rate
-        : 1;
-
-
-  video.playbackRate =
-    safeRate;
-
-
-  VideoManager.playbackRate =
-    safeRate;
-
-
-  document
-    .querySelectorAll(
-      "[data-video-speed]"
-    )
-    .forEach(
-      element => {
-
-        element.textContent =
-          `${safeRate}×`;
-
-      }
-    );
-
-
-  document
-    .querySelectorAll(
-      "[data-speed]"
-    )
-    .forEach(
-      button => {
-
-        button.classList.toggle(
-          "active",
-          Number(
-            button.dataset.speed
-          ) === safeRate
-        );
-
-      }
-    );
-
-
-  document.dispatchEvent(
-    new CustomEvent(
-      "video:speed-change",
-      {
-        detail: {
-          rate:
-            safeRate
-        }
-      }
-    )
-  );
-
-}
-
-
-/* =========================================================
-   17. FRAME STEP
-
-   기본 30fps 기준.
-   실제 FPS 추정값이 있으면 그것 사용.
-========================================================= */
-
-function stepVideoFrame(direction = 1) {
-
-  const video =
-    VideoManager.video;
-
-
-  if (
-    !video ||
-    !VideoManager.loaded
-  ) {
-    return;
-  }
-
-
-  pauseAnalysisVideo();
-
-
-  const fps =
-    VideoManager.estimatedFPS ||
-    VIDEO_CONFIG.defaultFPS;
-
-
-  const frameDuration =
-    1 / fps;
-
-
-  let target =
-    video.currentTime +
-    (
-      frameDuration *
-      direction
-    );
-
-
-  target =
-    Math.max(
-      0,
-      Math.min(
-        target,
-        VideoManager.duration
-      )
-    );
-
-
-  video.currentTime =
-    target;
-
-
-  VideoManager.currentTime =
-    target;
-
-
-  updateVideoUI();
-
-
-  /*
-     seeked 이후 프레임 분석
-  */
-
-  video.addEventListener(
-    "seeked",
-    () => {
-
-      dispatchVideoFrame();
-
-    },
-    {
-      once: true
-    }
-  );
-
-}
-
-
-/* =========================================================
-   18. SEEK
-========================================================= */
-
-function seekAnalysisVideo(time) {
-
-  const video =
-    VideoManager.video;
-
-
-  if (
-    !video ||
-    !VideoManager.loaded
-  ) {
-    return;
-  }
-
-
-  const safeTime =
-    Math.max(
-      0,
-      Math.min(
-        Number(time) || 0,
-        VideoManager.duration
-      )
-    );
-
-
-  video.currentTime =
-    safeTime;
-
-
-  VideoManager.currentTime =
-    safeTime;
-
-
-  updateVideoUI();
-
-}
-
-
-/* =========================================================
-   19. ANALYSIS LOOP
-========================================================= */
-
-function startVideoAnalysisLoop() {
-
-  cancelVideoAnalysisLoop();
-
-
-  const loop = timestamp => {
+  function formatTime(seconds) {
 
     if (
-      !VideoManager.playing
+      !Number.isFinite(seconds)
     ) {
-      return;
+
+      return "00:00.00";
+
     }
 
 
-    const video =
-      VideoManager.video;
+    const minutes =
+      Math.floor(
+        seconds / 60
+      );
 
+
+    const remaining =
+      seconds -
+      minutes * 60;
+
+
+    return (
+      String(minutes)
+        .padStart(2, "0") +
+      ":" +
+      remaining
+        .toFixed(2)
+        .padStart(5, "0")
+    );
+
+  }
+
+
+  /* =====================================================
+     CAMERA STOP
+  ===================================================== */
+
+  function stopCameraBeforeVideo() {
+
+    try {
+
+      if (
+        window.SeolcheonCamera &&
+        typeof window.SeolcheonCamera.stop ===
+          "function"
+      ) {
+
+        window.SeolcheonCamera.stop();
+
+      }
+
+    }
+
+    catch (error) {
+
+      console.warn(
+        "[VIDEO] camera stop error",
+        error
+      );
+
+    }
+
+  }
+
+
+  /* =====================================================
+     VIDEO LOAD
+  ===================================================== */
+
+  function loadVideo(file) {
+
+    if (
+      !file ||
+      !video
+    ) {
+
+      return;
+
+    }
+
+
+    /*
+      영상 파일인지 확인
+    */
+
+    if (
+      file.type &&
+      !file.type.startsWith(
+        "video/"
+      )
+    ) {
+
+      alert(
+        "영상 파일을 선택해주세요."
+      );
+
+      return;
+
+    }
+
+
+    stopCameraBeforeVideo();
+
+
+    /*
+      이전 URL 제거
+    */
+
+    if (objectURL) {
+
+      URL.revokeObjectURL(
+        objectURL
+      );
+
+      objectURL = null;
+
+    }
+
+
+    /*
+      camera stream 제거
+    */
+
+    video.pause();
+
+    video.srcObject =
+      null;
+
+
+    objectURL =
+      URL.createObjectURL(
+        file
+      );
+
+
+    video.dataset.objectUrl =
+      objectURL;
+
+
+    video.src =
+      objectURL;
+
+
+    /*
+      영상 분석에서는 autoplay OFF
+    */
+
+    video.autoplay =
+      false;
+
+
+    video.controls =
+      false;
+
+
+    video.muted =
+      true;
+
+
+    video.playsInline =
+      true;
+
+
+    video.playbackRate =
+      1;
+
+
+    const rateSelect =
+      document.querySelector(
+        "[data-playback-rate]"
+      );
+
+
+    if (rateSelect) {
+
+      rateSelect.value =
+        "1";
+
+    }
+
+
+    video.load();
+
+
+    videoLoaded =
+      true;
+
+
+    console.log(
+      "[VIDEO] FILE LOADED:",
+      file.name
+    );
+
+  }
+
+
+  /* =====================================================
+     METADATA
+  ===================================================== */
+
+  function handleMetadata() {
 
     if (!video) {
       return;
     }
 
 
-    VideoManager.currentTime =
-      video.currentTime;
+    if (totalTimeLabel) {
+
+      totalTimeLabel.textContent =
+        formatTime(
+          video.duration
+        );
+
+    }
 
 
-    updateVideoUI();
+    if (currentTimeLabel) {
+
+      currentTimeLabel.textContent =
+        "00:00.00";
+
+    }
+
+
+    if (progress) {
+
+      progress.min =
+        "0";
+
+      progress.max =
+        "1000";
+
+      progress.value =
+        "0";
+
+    }
+
+
+    resizeAnalysisCanvases();
+
+  }
+
+
+  /* =====================================================
+     TIME UPDATE
+  ===================================================== */
+
+  function handleTimeUpdate() {
+
+    if (!video) {
+      return;
+    }
+
+
+    if (currentTimeLabel) {
+
+      currentTimeLabel.textContent =
+        formatTime(
+          video.currentTime
+        );
+
+    }
+
+
+    if (
+      progress &&
+      Number.isFinite(
+        video.duration
+      ) &&
+      video.duration > 0
+    ) {
+
+      progress.value =
+        String(
+          Math.round(
+            (
+              video.currentTime /
+              video.duration
+            ) * 1000
+          )
+        );
+
+    }
+
+  }
+
+
+  /* =====================================================
+     PLAY
+  ===================================================== */
+
+  async function play() {
+
+    if (!video) {
+      return;
+    }
 
 
     /*
-       pose.js / sports-analysis.js가
-       이 프레임을 받아 분석
+      카메라가 실행 중이면
+      video.play()는 카메라 스트림을 재생하는 것이므로
+      그대로 허용
     */
 
-    document.dispatchEvent(
-      new CustomEvent(
-        "video:frame",
-        {
-          detail: {
+    try {
 
-            video,
+      await video.play();
 
-            timestamp,
+    }
 
-            currentTime:
-              video.currentTime,
+    catch (error) {
 
-            duration:
-              video.duration,
-
-            playbackRate:
-              video.playbackRate
-
-          }
-        }
-      )
-    );
-
-
-    VideoManager.animationFrame =
-      requestAnimationFrame(
-        loop
-      );
-
-  };
-
-
-  VideoManager.animationFrame =
-    requestAnimationFrame(
-      loop
-    );
-
-}
-
-
-/* =========================================================
-   20. DISPATCH SINGLE FRAME
-========================================================= */
-
-function dispatchVideoFrame() {
-
-  const video =
-    VideoManager.video;
-
-
-  if (!video) {
-    return;
-  }
-
-
-  document.dispatchEvent(
-    new CustomEvent(
-      "video:frame",
-      {
-        detail: {
-
-          video,
-
-          timestamp:
-            performance.now(),
-
-          currentTime:
-            video.currentTime,
-
-          duration:
-            video.duration,
-
-          playbackRate:
-            video.playbackRate,
-
-          paused:
-            true
-
-        }
-      }
-    )
-  );
-
-}
-
-
-/* =========================================================
-   21. CANCEL LOOP
-========================================================= */
-
-function cancelVideoAnalysisLoop() {
-
-  if (
-    VideoManager.animationFrame
-  ) {
-
-    cancelAnimationFrame(
-      VideoManager.animationFrame
-    );
-
-
-    VideoManager.animationFrame =
-      null;
-
-  }
-
-}
-
-
-/* =========================================================
-   22. SNAPSHOT
-========================================================= */
-
-function captureVideoFrame() {
-
-  const video =
-    VideoManager.video;
-
-
-  if (
-    !video ||
-    !VideoManager.loaded
-  ) {
-
-    showVideoMessage(
-      "먼저 영상을 선택해주세요.",
-      "error"
-    );
-
-    return null;
-  }
-
-
-  const canvas =
-    document.createElement(
-      "canvas"
-    );
-
-
-  canvas.width =
-    video.videoWidth;
-
-
-  canvas.height =
-    video.videoHeight;
-
-
-  const ctx =
-    canvas.getContext(
-      "2d"
-    );
-
-
-  ctx.drawImage(
-    video,
-    0,
-    0,
-    canvas.width,
-    canvas.height
-  );
-
-
-  const image =
-    canvas.toDataURL(
-      "image/jpeg",
-      VIDEO_CONFIG.snapshotQuality
-    );
-
-
-  const snapshot = {
-
-    id:
-      "video_frame_" +
-      Date.now(),
-
-    time:
-      video.currentTime,
-
-    formattedTime:
-      formatVideoTime(
-        video.currentTime
-      ),
-
-    width:
-      canvas.width,
-
-    height:
-      canvas.height,
-
-    image,
-
-    createdAt:
-      new Date()
-        .toISOString()
-
-  };
-
-
-  document.dispatchEvent(
-    new CustomEvent(
-      "video:snapshot",
-      {
-        detail:
-          snapshot
-      }
-    )
-  );
-
-
-  showVideoMessage(
-    `프레임 캡처 ${snapshot.formattedTime}`,
-    "success"
-  );
-
-
-  return snapshot;
-
-}
-
-
-/* =========================================================
-   23. SEGMENT START
-
-   바이애슬론 / 육상 등에서
-   구간 분석 시작점 지정
-========================================================= */
-
-function setSegmentStart() {
-
-  const video =
-    VideoManager.video;
-
-
-  if (!video) {
-    return;
-  }
-
-
-  VideoManager.segmentStart =
-    video.currentTime;
-
-
-  /*
-     종료점보다 뒤에 시작점을 찍었다면
-     종료점 초기화
-  */
-
-  if (
-    VideoManager.segmentEnd !== null &&
-    VideoManager.segmentEnd <
-      VideoManager.segmentStart
-  ) {
-
-    VideoManager.segmentEnd =
-      null;
-
-  }
-
-
-  updateSegmentUI();
-
-
-  document.dispatchEvent(
-    new CustomEvent(
-      "video:segment-start",
-      {
-        detail: {
-
-          time:
-            VideoManager.segmentStart
-
-        }
-      }
-    )
-  );
-
-}
-
-
-/* =========================================================
-   24. SEGMENT END
-========================================================= */
-
-function setSegmentEnd() {
-
-  const video =
-    VideoManager.video;
-
-
-  if (!video) {
-    return;
-  }
-
-
-  if (
-    VideoManager.segmentStart ===
-      null
-  ) {
-
-    showVideoMessage(
-      "먼저 구간 시작점을 지정해주세요.",
-      "error"
-    );
-
-    return;
-  }
-
-
-  if (
-    video.currentTime <=
-    VideoManager.segmentStart
-  ) {
-
-    showVideoMessage(
-      "종료점은 시작점보다 뒤에 지정해주세요.",
-      "error"
-    );
-
-    return;
-  }
-
-
-  VideoManager.segmentEnd =
-    video.currentTime;
-
-
-  updateSegmentUI();
-
-
-  const segment =
-    getCurrentVideoSegment();
-
-
-  document.dispatchEvent(
-    new CustomEvent(
-      "video:segment-complete",
-      {
-        detail:
-          segment
-      }
-    )
-  );
-
-
-  showVideoMessage(
-    `구간 ${segment.duration.toFixed(2)}초`,
-    "success"
-  );
-
-}
-
-
-/* =========================================================
-   25. GET SEGMENT
-========================================================= */
-
-function getCurrentVideoSegment() {
-
-  if (
-    VideoManager.segmentStart ===
-      null ||
-    VideoManager.segmentEnd ===
-      null
-  ) {
-
-    return null;
-
-  }
-
-
-  return {
-
-    start:
-      VideoManager.segmentStart,
-
-    end:
-      VideoManager.segmentEnd,
-
-    duration:
-      VideoManager.segmentEnd -
-      VideoManager.segmentStart,
-
-    startLabel:
-      formatVideoTime(
-        VideoManager.segmentStart
-      ),
-
-    endLabel:
-      formatVideoTime(
-        VideoManager.segmentEnd
-      )
-
-  };
-
-}
-
-
-/* =========================================================
-   26. CLEAR SEGMENT
-========================================================= */
-
-function clearVideoSegment() {
-
-  VideoManager.segmentStart =
-    null;
-
-
-  VideoManager.segmentEnd =
-    null;
-
-
-  updateSegmentUI();
-
-}
-
-
-/* =========================================================
-   27. SEGMENT UI
-========================================================= */
-
-function updateSegmentUI() {
-
-  const start =
-    document.querySelector(
-      "[data-segment-start-time]"
-    );
-
-
-  const end =
-    document.querySelector(
-      "[data-segment-end-time]"
-    );
-
-
-  const duration =
-    document.querySelector(
-      "[data-segment-duration]"
-    );
-
-
-  if (start) {
-
-    start.textContent =
-      VideoManager.segmentStart !== null
-        ? formatVideoTime(
-            VideoManager.segmentStart
-          )
-        : "--:--.--";
-
-  }
-
-
-  if (end) {
-
-    end.textContent =
-      VideoManager.segmentEnd !== null
-        ? formatVideoTime(
-            VideoManager.segmentEnd
-          )
-        : "--:--.--";
-
-  }
-
-
-  const segment =
-    getCurrentVideoSegment();
-
-
-  if (duration) {
-
-    duration.textContent =
-      segment
-        ? `${segment.duration.toFixed(2)} s`
-        : "--";
-
-  }
-
-}
-
-
-/* =========================================================
-   28. VIDEO UI
-========================================================= */
-
-function updateVideoUI() {
-
-  const video =
-    VideoManager.video;
-
-
-  if (!video) {
-    return;
-  }
-
-
-  const current =
-    video.currentTime || 0;
-
-
-  const duration =
-    Number.isFinite(
-      video.duration
-    )
-      ? video.duration
-      : 0;
-
-
-  VideoManager.currentTime =
-    current;
-
-
-  document
-    .querySelectorAll(
-      "[data-video-current-time]"
-    )
-    .forEach(
-      element => {
-
-        element.textContent =
-          formatVideoTime(
-            current
-          );
-
-      }
-    );
-
-
-  document
-    .querySelectorAll(
-      "[data-video-duration]"
-    )
-    .forEach(
-      element => {
-
-        element.textContent =
-          formatVideoTime(
-            duration
-          );
-
-      }
-    );
-
-
-  document
-    .querySelectorAll(
-      [
-        "#video-timeline",
-        "[data-video-timeline]"
-      ].join(",")
-    )
-    .forEach(
-      slider => {
-
-        slider.min =
-          0;
-
-        slider.max =
-          duration || 0;
-
-        slider.step =
-          0.001;
-
-        slider.value =
-          current;
-
-      }
-    );
-
-
-  updateFrameNumber();
-
-}
-
-
-/* =========================================================
-   29. FRAME NUMBER
-========================================================= */
-
-function updateFrameNumber() {
-
-  const frame =
-    Math.round(
-      VideoManager.currentTime *
-      VideoManager.estimatedFPS
-    );
-
-
-  document
-    .querySelectorAll(
-      "[data-video-frame-number]"
-    )
-    .forEach(
-      element => {
-
-        element.textContent =
-          `FRAME ${frame}`;
-
-      }
-    );
-
-}
-
-
-/* =========================================================
-   30. STATUS
-========================================================= */
-
-function updateVideoStatus(status) {
-
-  document
-    .querySelectorAll(
-      "[data-video-status]"
-    )
-    .forEach(
-      element => {
-
-        element.textContent =
-          status;
-
-        element.dataset.status =
-          status.toLowerCase();
-
-      }
-    );
-
-}
-
-
-/* =========================================================
-   31. MESSAGE
-========================================================= */
-
-function showVideoMessage(
-  message,
-  type = ""
-) {
-
-  const element =
-
-    document.getElementById(
-      "video-message"
-    ) ||
-
-    document.querySelector(
-      "[data-video-message]"
-    );
-
-
-  if (!element) {
-
-    if (message) {
-
-      console.log(
-        "[VIDEO]",
-        message
+      console.error(
+        "[VIDEO PLAY]",
+        error
       );
 
     }
 
-    return;
   }
 
 
-  element.textContent =
-    message;
+  /* =====================================================
+     PAUSE
+  ===================================================== */
+
+  function pause() {
+
+    if (!video) {
+      return;
+    }
 
 
-  element.dataset.type =
-    type;
-
-
-  element.hidden =
-    !message;
-
-}
-
-
-/* =========================================================
-   32. FORMAT TIME
-========================================================= */
-
-function formatVideoTime(seconds) {
-
-  if (
-    !Number.isFinite(seconds)
-  ) {
-
-    return "00:00.00";
+    video.pause();
 
   }
 
 
-  const minutes =
-    Math.floor(
-      seconds / 60
+  /* =====================================================
+     PLAYBACK RATE / SLOW MOTION
+  ===================================================== */
+
+  function setPlaybackRate(rate) {
+
+    if (!video) {
+      return;
+    }
+
+
+    const parsed =
+      Number(rate);
+
+
+    const allowedRates = [
+      0.1,
+      0.25,
+      0.5,
+      0.75,
+      1
+    ];
+
+
+    if (
+      !allowedRates.includes(
+        parsed
+      )
+    ) {
+
+      return;
+
+    }
+
+
+    /*
+      MediaStream 실시간 카메라는
+      playbackRate 슬로모션이 의미가 없음.
+
+      업로드된 영상에서 사용.
+    */
+
+    if (
+      video.srcObject
+    ) {
+
+      console.log(
+        "[VIDEO] live camera does not support playback slow motion"
+      );
+
+      return;
+
+    }
+
+
+    video.playbackRate =
+      parsed;
+
+
+    console.log(
+      "[VIDEO] PLAYBACK RATE:",
+      parsed
+    );
+
+  }
+
+
+  /* =====================================================
+     FRAME STEP
+  ===================================================== */
+
+  function getFrameDuration() {
+
+    return 1 / videoFPS;
+
+  }
+
+
+  function framePrevious() {
+
+    if (!video) {
+      return;
+    }
+
+
+    /*
+      실시간 카메라에서는 프레임 이동 불가
+    */
+
+    if (
+      video.srcObject
+    ) {
+
+      return;
+
+    }
+
+
+    video.pause();
+
+
+    const frameDuration =
+      getFrameDuration();
+
+
+    video.currentTime =
+      Math.max(
+        0,
+        video.currentTime -
+          frameDuration
+      );
+
+
+    handleTimeUpdate();
+
+  }
+
+
+  function frameNext() {
+
+    if (!video) {
+      return;
+    }
+
+
+    if (
+      video.srcObject
+    ) {
+
+      return;
+
+    }
+
+
+    video.pause();
+
+
+    const frameDuration =
+      getFrameDuration();
+
+
+    const duration =
+      Number.isFinite(
+        video.duration
+      )
+        ? video.duration
+        : Infinity;
+
+
+    video.currentTime =
+      Math.min(
+        duration,
+        video.currentTime +
+          frameDuration
+      );
+
+
+    handleTimeUpdate();
+
+  }
+
+
+  /* =====================================================
+     TIMELINE SEEK
+  ===================================================== */
+
+  function seekFromProgress() {
+
+    if (
+      !video ||
+      !progress
+    ) {
+
+      return;
+
+    }
+
+
+    if (
+      video.srcObject
+    ) {
+
+      return;
+
+    }
+
+
+    if (
+      !Number.isFinite(
+        video.duration
+      )
+    ) {
+
+      return;
+
+    }
+
+
+    const percent =
+      Number(
+        progress.value
+      ) / 1000;
+
+
+    video.currentTime =
+      video.duration *
+      percent;
+
+  }
+
+
+  /* =====================================================
+     CANVAS RESIZE
+  ===================================================== */
+
+  function resizeAnalysisCanvases() {
+
+    if (!video) {
+      return;
+    }
+
+
+    const width =
+      video.videoWidth ||
+      1280;
+
+
+    const height =
+      video.videoHeight ||
+      720;
+
+
+    document
+      .querySelectorAll(
+        `
+        [data-analysis-canvas],
+        [data-skeleton-canvas],
+        [data-trajectory-canvas]
+        `
+      )
+      .forEach(
+        canvas => {
+
+          canvas.width =
+            width;
+
+          canvas.height =
+            height;
+
+        }
+      );
+
+  }
+
+
+  /* =====================================================
+     SNAPSHOT
+  ===================================================== */
+
+  function captureSnapshot() {
+
+    if (!video) {
+      return null;
+    }
+
+
+    if (
+      video.readyState < 2
+    ) {
+
+      alert(
+        "먼저 카메라 또는 분석 영상을 준비해주세요."
+      );
+
+      return null;
+
+    }
+
+
+    const width =
+      video.videoWidth;
+
+
+    const height =
+      video.videoHeight;
+
+
+    if (
+      !width ||
+      !height
+    ) {
+
+      return null;
+
+    }
+
+
+    const canvas =
+      document.createElement(
+        "canvas"
+      );
+
+
+    canvas.width =
+      width;
+
+    canvas.height =
+      height;
+
+
+    const ctx =
+      canvas.getContext(
+        "2d"
+      );
+
+
+    /*
+      원본 영상
+    */
+
+    ctx.drawImage(
+      video,
+      0,
+      0,
+      width,
+      height
     );
 
 
-  const remaining =
-    seconds -
-    minutes * 60;
+    /*
+      분석 오버레이 합성
+    */
+
+    const overlays = [
+
+      document.querySelector(
+        "[data-analysis-canvas]"
+      ),
+
+      document.querySelector(
+        "[data-skeleton-canvas]"
+      ),
+
+      document.querySelector(
+        "[data-trajectory-canvas]"
+      )
+
+    ];
 
 
-  return (
-    String(minutes)
-      .padStart(2, "0") +
-    ":" +
-    remaining
-      .toFixed(2)
-      .padStart(5, "0")
-  );
+    overlays.forEach(
+      overlay => {
 
-}
+        if (!overlay) {
+          return;
+        }
 
 
-/* =========================================================
-   33. SET ESTIMATED FPS
+        try {
 
-   향후 영상 메타데이터/분석 결과로
-   60fps, 120fps 등 지정 가능
-========================================================= */
+          ctx.drawImage(
+            overlay,
+            0,
+            0,
+            width,
+            height
+          );
 
-function setVideoEstimatedFPS(fps) {
+        }
 
-  const value =
-    Number(fps);
+        catch (error) {
 
+          console.warn(
+            "[SNAPSHOT OVERLAY]",
+            error
+          );
 
-  if (
-    !Number.isFinite(value) ||
-    value <= 0
-  ) {
-    return;
-  }
+        }
 
-
-  VideoManager.estimatedFPS =
-    value;
-
-
-  updateFrameNumber();
-
-}
-
-
-/* =========================================================
-   34. RELEASE VIDEO URL
-========================================================= */
-
-function releaseVideoURL() {
-
-  if (
-    VideoManager.objectURL
-  ) {
-
-    URL.revokeObjectURL(
-      VideoManager.objectURL
+      }
     );
 
 
-    VideoManager.objectURL =
-      null;
-
-  }
-
-}
+    const image =
+      canvas.toDataURL(
+        "image/png"
+      );
 
 
-/* =========================================================
-   35. RESET
-========================================================= */
+    /*
+      리포트에서 사용할 수 있게 저장
+    */
 
-function resetAnalysisVideo() {
+    try {
 
-  pauseAnalysisVideo();
+      sessionStorage.setItem(
+        "seolcheon_analysis_snapshot",
+        image
+      );
+
+    }
+
+    catch (error) {
+
+      console.warn(
+        "[SNAPSHOT STORAGE]",
+        error
+      );
+
+    }
 
 
-  if (
-    VideoManager.video
-  ) {
+    /*
+      전역 분석 데이터에도 제공
+    */
 
-    VideoManager.video.removeAttribute(
-      "src"
+    window.SeolcheonAnalysisSnapshot =
+      image;
+
+
+    console.log(
+      "[VIDEO] SNAPSHOT CREATED"
     );
 
 
-    VideoManager.video.load();
+    return image;
 
   }
 
 
-  releaseVideoURL();
+  /* =====================================================
+     BUTTON BINDING
+  ===================================================== */
+
+  function bindControls() {
+
+    /* PLAY */
+
+    document
+      .querySelectorAll(
+        "[data-analysis-play]"
+      )
+      .forEach(
+        button => {
+
+          if (
+            button.dataset.videoBound ===
+            "true"
+          ) {
+
+            return;
+
+          }
 
 
-  VideoManager.file =
-    null;
-
-  VideoManager.loaded =
-    false;
-
-  VideoManager.duration =
-    0;
-
-  VideoManager.currentTime =
-    0;
-
-  VideoManager.segmentStart =
-    null;
-
-  VideoManager.segmentEnd =
-    null;
+          button.dataset.videoBound =
+            "true";
 
 
-  updateSegmentUI();
+          button.addEventListener(
+            "click",
+            play
+          );
+
+        }
+      );
 
 
-  updateVideoStatus(
-    "READY"
-  );
+    /* PAUSE */
 
-}
+    document
+      .querySelectorAll(
+        "[data-analysis-pause]"
+      )
+      .forEach(
+        button => {
+
+          if (
+            button.dataset.videoBound ===
+            "true"
+          ) {
+
+            return;
+
+          }
 
 
-/* =========================================================
-   36. VIDEO STATE
-========================================================= */
+          button.dataset.videoBound =
+            "true";
 
-function getVideoState() {
+
+          button.addEventListener(
+            "click",
+            pause
+          );
+
+        }
+      );
+
+
+    /* PREVIOUS FRAME */
+
+    document
+      .querySelectorAll(
+        "[data-analysis-frame-prev]"
+      )
+      .forEach(
+        button => {
+
+          if (
+            button.dataset.videoBound ===
+            "true"
+          ) {
+
+            return;
+
+          }
+
+
+          button.dataset.videoBound =
+            "true";
+
+
+          button.addEventListener(
+            "click",
+            framePrevious
+          );
+
+        }
+      );
+
+
+    /* NEXT FRAME */
+
+    document
+      .querySelectorAll(
+        "[data-analysis-frame-next]"
+      )
+      .forEach(
+        button => {
+
+          if (
+            button.dataset.videoBound ===
+            "true"
+          ) {
+
+            return;
+
+          }
+
+
+          button.dataset.videoBound =
+            "true";
+
+
+          button.addEventListener(
+            "click",
+            frameNext
+          );
+
+        }
+      );
+
+
+    /* SNAPSHOT */
+
+    document
+      .querySelectorAll(
+        "[data-analysis-snapshot]"
+      )
+      .forEach(
+        button => {
+
+          if (
+            button.dataset.videoBound ===
+            "true"
+          ) {
+
+            return;
+
+          }
+
+
+          button.dataset.videoBound =
+            "true";
+
+
+          button.addEventListener(
+            "click",
+            () => {
+
+              const image =
+                captureSnapshot();
+
+
+              if (image) {
+
+                button.textContent =
+                  "분석 사진 저장됨";
+
+
+                setTimeout(
+                  () => {
+
+                    button.textContent =
+                      "분석 사진 저장";
+
+                  },
+                  1200
+                );
+
+              }
+
+            }
+          );
+
+        }
+      );
+
+  }
+
+
+  /* =====================================================
+     EVENT BINDING
+  ===================================================== */
+
+  function bindEvents() {
+
+    if (
+      uploadInput &&
+      uploadInput.dataset.videoInputBound !==
+        "true"
+    ) {
+
+      uploadInput.dataset.videoInputBound =
+        "true";
+
+
+      uploadInput.addEventListener(
+        "change",
+        event => {
+
+          const file =
+            event.target.files?.[0];
+
+
+          if (file) {
+
+            loadVideo(
+              file
+            );
+
+          }
+
+        }
+      );
+
+    }
+
+
+    if (
+      video &&
+      video.dataset.videoEventsBound !==
+        "true"
+    ) {
+
+      video.dataset.videoEventsBound =
+        "true";
+
+
+      video.addEventListener(
+        "loadedmetadata",
+        handleMetadata
+      );
+
+
+      video.addEventListener(
+        "timeupdate",
+        handleTimeUpdate
+      );
+
+
+      video.addEventListener(
+        "loadeddata",
+        resizeAnalysisCanvases
+      );
+
+
+      video.addEventListener(
+        "resize",
+        resizeAnalysisCanvases
+      );
+
+    }
+
+
+    document
+      .querySelectorAll(
+        "[data-playback-rate]"
+      )
+      .forEach(
+        select => {
+
+          if (
+            select.dataset.videoBound ===
+            "true"
+          ) {
+
+            return;
+
+          }
+
+
+          select.dataset.videoBound =
+            "true";
+
+
+          select.addEventListener(
+            "change",
+            () => {
+
+              setPlaybackRate(
+                select.value
+              );
+
+            }
+          );
+
+        }
+      );
+
+
+    if (
+      progress &&
+      progress.dataset.videoBound !==
+        "true"
+    ) {
+
+      progress.dataset.videoBound =
+        "true";
+
+
+      progress.addEventListener(
+        "input",
+        seekFromProgress
+      );
+
+    }
+
+  }
+
+
+  /* =====================================================
+     REFRESH
+  ===================================================== */
+
+  function refresh() {
+
+    getElements();
+
+    bindEvents();
+
+    bindControls();
+
+  }
+
+
+  /* =====================================================
+     INIT
+  ===================================================== */
+
+  function init() {
+
+    refresh();
+
+
+    const observer =
+      new MutationObserver(
+        () => {
+
+          refresh();
+
+        }
+      );
+
+
+    if (
+      document.body
+    ) {
+
+      observer.observe(
+        document.body,
+        {
+          childList: true,
+          subtree: true
+        }
+      );
+
+    }
+
+
+    console.log(
+      "[VIDEO] MODULE READY"
+    );
+
+  }
+
+
+  if (
+    document.readyState ===
+    "loading"
+  ) {
+
+    document.addEventListener(
+      "DOMContentLoaded",
+      init
+    );
+
+  }
+
+  else {
+
+    init();
+
+  }
+
+
+  /* =====================================================
+     PUBLIC API
+  ===================================================== */
 
   return {
 
-    loaded:
-      VideoManager.loaded,
+    play,
 
-    playing:
-      VideoManager.playing,
+    pause,
 
-    duration:
-      VideoManager.duration,
+    loadVideo,
 
-    currentTime:
-      VideoManager.currentTime,
+    setPlaybackRate,
 
-    playbackRate:
-      VideoManager.playbackRate,
+    framePrevious,
 
-    fps:
-      VideoManager.estimatedFPS,
+    frameNext,
 
-    segment:
-      getCurrentVideoSegment()
+    captureSnapshot,
+
+    resizeAnalysisCanvases,
+
+    setFPS(fps) {
+
+      const value =
+        Number(fps);
+
+
+      if (
+        Number.isFinite(value) &&
+        value > 0
+      ) {
+
+        videoFPS =
+          value;
+
+      }
+
+    },
+
+
+    getState() {
+
+      return {
+
+        videoLoaded,
+
+        fps:
+          videoFPS,
+
+        playbackRate:
+          video?.playbackRate || 1,
+
+        currentTime:
+          video?.currentTime || 0,
+
+        duration:
+          video?.duration || 0
+
+      };
+
+    }
 
   };
 
-}
-
-
-/* =========================================================
-   37. PAGE CLEANUP
-========================================================= */
-
-window.addEventListener(
-  "beforeunload",
-  () => {
-
-    releaseVideoURL();
-
-  }
-);
-
-
-/* =========================================================
-   38. AUTO INIT
-========================================================= */
-
-if (
-  document.readyState ===
-  "loading"
-) {
-
-  document.addEventListener(
-    "DOMContentLoaded",
-    initVideo
-  );
-
-}
-
-else {
-
-  initVideo();
-
-}
-
-
-/* =========================================================
-   39. GLOBAL ACCESS
-========================================================= */
-
-window.VIDEO_CONFIG =
-  VIDEO_CONFIG;
-
-window.VideoManager =
-  VideoManager;
-
-window.initVideo =
-  initVideo;
-
-window.openVideoPicker =
-  openVideoPicker;
-
-window.loadAnalysisVideo =
-  loadAnalysisVideo;
-
-window.playAnalysisVideo =
-  playAnalysisVideo;
-
-window.pauseAnalysisVideo =
-  pauseAnalysisVideo;
-
-window.toggleAnalysisVideo =
-  toggleAnalysisVideo;
-
-window.setVideoSpeed =
-  setVideoSpeed;
-
-window.stepVideoFrame =
-  stepVideoFrame;
-
-window.seekAnalysisVideo =
-  seekAnalysisVideo;
-
-window.captureVideoFrame =
-  captureVideoFrame;
-
-window.setSegmentStart =
-  setSegmentStart;
-
-window.setSegmentEnd =
-  setSegmentEnd;
-
-window.clearVideoSegment =
-  clearVideoSegment;
-
-window.getCurrentVideoSegment =
-  getCurrentVideoSegment;
-
-window.setVideoEstimatedFPS =
-  setVideoEstimatedFPS;
-
-window.getVideoState =
-  getVideoState;
-
-window.resetAnalysisVideo =
-  resetAnalysisVideo;
+})();
