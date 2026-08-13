@@ -1,0 +1,2081 @@
+/* =========================================================
+   설천고 SPORTS PERFORMANCE ANALYSIS SYSTEM
+   DATA / TRAINING-LIBRARY.JS
+
+   TRAINING DATABASE
+   - 스포츠과학 훈련 라이브러리
+   - 근력 / 파워 / 스피드 / 민첩성
+   - 코어 / 밸런스 / 가동성
+   - 플라이오메트릭
+   - 러닝
+   - 스키 / 롤러스키
+   - 종목 특화
+   - 분석 결과 기반 추천용
+
+   ※ 실제 훈련 처방은 지도자/코치의 판단과 함께 사용
+========================================================= */
+
+"use strict";
+
+
+const SEOLCHEON_TRAINING_LIBRARY = [
+
+/* =========================================================
+   01. LOWER BODY STRENGTH
+========================================================= */
+
+{
+  id: "LB001",
+  name: "백 스쿼트",
+  category: "strength",
+  area: "lower",
+  tags: ["strength", "leg", "power"],
+  targets: ["power", "stability"]
+},
+
+{
+  id: "LB002",
+  name: "프론트 스쿼트",
+  category: "strength",
+  area: "lower",
+  tags: ["strength", "quad", "core"],
+  targets: ["posture", "power"]
+},
+
+{
+  id: "LB003",
+  name: "고블릿 스쿼트",
+  category: "strength",
+  area: "lower",
+  tags: ["strength", "mobility"],
+  targets: ["posture", "mobility"]
+},
+
+{
+  id: "LB004",
+  name: "불가리안 스플릿 스쿼트",
+  category: "strength",
+  area: "lower",
+  tags: ["unilateral", "strength"],
+  targets: ["symmetry", "stability"]
+},
+
+{
+  id: "LB005",
+  name: "리버스 런지",
+  category: "strength",
+  area: "lower",
+  tags: ["unilateral", "leg"],
+  targets: ["symmetry", "stability"]
+},
+
+{
+  id: "LB006",
+  name: "워킹 런지",
+  category: "strength",
+  area: "lower",
+  tags: ["leg", "coordination"],
+  targets: ["coordination", "stability"]
+},
+
+{
+  id: "LB007",
+  name: "사이드 런지",
+  category: "strength",
+  area: "lower",
+  tags: ["lateral", "hip"],
+  targets: ["mobility", "stability"]
+},
+
+{
+  id: "LB008",
+  name: "코사크 스쿼트",
+  category: "strength",
+  area: "lower",
+  tags: ["mobility", "lateral"],
+  targets: ["mobility", "symmetry"]
+},
+
+{
+  id: "LB009",
+  name: "스텝업",
+  category: "strength",
+  area: "lower",
+  tags: ["unilateral"],
+  targets: ["symmetry", "power"]
+},
+
+{
+  id: "LB010",
+  name: "싱글 레그 스쿼트",
+  category: "strength",
+  area: "lower",
+  tags: ["unilateral", "balance"],
+  targets: ["balance", "symmetry"]
+},
+
+{
+  id: "LB011",
+  name: "레그 프레스",
+  category: "strength",
+  area: "lower",
+  tags: ["strength"],
+  targets: ["power"]
+},
+
+{
+  id: "LB012",
+  name: "싱글 레그 프레스",
+  category: "strength",
+  area: "lower",
+  tags: ["unilateral"],
+  targets: ["symmetry"]
+},
+
+{
+  id: "LB013",
+  name: "월싯",
+  category: "strength",
+  area: "lower",
+  tags: ["isometric"],
+  targets: ["stability"]
+},
+
+{
+  id: "LB014",
+  name: "스패니시 스쿼트",
+  category: "strength",
+  area: "lower",
+  tags: ["isometric"],
+  targets: ["stability"]
+},
+
+{
+  id: "LB015",
+  name: "카프 레이즈",
+  category: "strength",
+  area: "lower",
+  tags: ["calf"],
+  targets: ["power", "stability"]
+},
+
+{
+  id: "LB016",
+  name: "싱글 레그 카프 레이즈",
+  category: "strength",
+  area: "lower",
+  tags: ["calf", "unilateral"],
+  targets: ["symmetry", "stability"]
+},
+
+
+/* =========================================================
+   02. POSTERIOR CHAIN
+========================================================= */
+
+{
+  id: "PC001",
+  name: "루마니안 데드리프트",
+  category: "strength",
+  area: "posterior",
+  tags: ["hamstring", "hip"],
+  targets: ["power", "posture"]
+},
+
+{
+  id: "PC002",
+  name: "싱글 레그 RDL",
+  category: "strength",
+  area: "posterior",
+  tags: ["balance", "unilateral"],
+  targets: ["symmetry", "balance"]
+},
+
+{
+  id: "PC003",
+  name: "힙 쓰러스트",
+  category: "strength",
+  area: "posterior",
+  tags: ["glute", "power"],
+  targets: ["power"]
+},
+
+{
+  id: "PC004",
+  name: "싱글 레그 힙 쓰러스트",
+  category: "strength",
+  area: "posterior",
+  tags: ["glute", "unilateral"],
+  targets: ["symmetry", "power"]
+},
+
+{
+  id: "PC005",
+  name: "글루트 브리지",
+  category: "strength",
+  area: "posterior",
+  tags: ["glute"],
+  targets: ["stability"]
+},
+
+{
+  id: "PC006",
+  name: "노르딕 햄스트링",
+  category: "strength",
+  area: "posterior",
+  tags: ["hamstring", "eccentric"],
+  targets: ["strength", "stability"]
+},
+
+{
+  id: "PC007",
+  name: "백 익스텐션",
+  category: "strength",
+  area: "posterior",
+  tags: ["posterior"],
+  targets: ["posture"]
+},
+
+
+/* =========================================================
+   03. UPPER BODY
+========================================================= */
+
+{
+  id: "UB001",
+  name: "풀업",
+  category: "strength",
+  area: "upper",
+  tags: ["pull", "back"],
+  targets: ["strength"]
+},
+
+{
+  id: "UB002",
+  name: "친업",
+  category: "strength",
+  area: "upper",
+  tags: ["pull"],
+  targets: ["strength"]
+},
+
+{
+  id: "UB003",
+  name: "랫풀다운",
+  category: "strength",
+  area: "upper",
+  tags: ["pull"],
+  targets: ["strength"]
+},
+
+{
+  id: "UB004",
+  name: "시티드 케이블 로우",
+  category: "strength",
+  area: "upper",
+  tags: ["row"],
+  targets: ["posture"]
+},
+
+{
+  id: "UB005",
+  name: "바벨 로우",
+  category: "strength",
+  area: "upper",
+  tags: ["row"],
+  targets: ["strength", "posture"]
+},
+
+{
+  id: "UB006",
+  name: "덤벨 로우",
+  category: "strength",
+  area: "upper",
+  tags: ["row", "unilateral"],
+  targets: ["symmetry"]
+},
+
+{
+  id: "UB007",
+  name: "벤치프레스",
+  category: "strength",
+  area: "upper",
+  tags: ["push"],
+  targets: ["strength", "power"]
+},
+
+{
+  id: "UB008",
+  name: "덤벨 벤치프레스",
+  category: "strength",
+  area: "upper",
+  tags: ["push"],
+  targets: ["symmetry"]
+},
+
+{
+  id: "UB009",
+  name: "푸시업",
+  category: "strength",
+  area: "upper",
+  tags: ["push", "core"],
+  targets: ["stability"]
+},
+
+{
+  id: "UB010",
+  name: "오버헤드 프레스",
+  category: "strength",
+  area: "upper",
+  tags: ["shoulder"],
+  targets: ["strength", "stability"]
+},
+
+{
+  id: "UB011",
+  name: "페이스풀",
+  category: "strength",
+  area: "upper",
+  tags: ["shoulder", "posture"],
+  targets: ["posture", "stability"]
+},
+
+{
+  id: "UB012",
+  name: "트라이셉스 프레스다운",
+  category: "strength",
+  area: "upper",
+  tags: ["triceps"],
+  targets: ["strength"]
+},
+
+
+/* =========================================================
+   04. CORE
+========================================================= */
+
+{
+  id: "CO001",
+  name: "프론트 플랭크",
+  category: "core",
+  area: "trunk",
+  tags: ["isometric"],
+  targets: ["stability", "posture"]
+},
+
+{
+  id: "CO002",
+  name: "사이드 플랭크",
+  category: "core",
+  area: "trunk",
+  tags: ["lateral"],
+  targets: ["stability", "symmetry"]
+},
+
+{
+  id: "CO003",
+  name: "데드버그",
+  category: "core",
+  area: "trunk",
+  tags: ["control"],
+  targets: ["coordination", "stability"]
+},
+
+{
+  id: "CO004",
+  name: "버드독",
+  category: "core",
+  area: "trunk",
+  tags: ["control"],
+  targets: ["symmetry", "coordination"]
+},
+
+{
+  id: "CO005",
+  name: "팔로프 프레스",
+  category: "core",
+  area: "trunk",
+  tags: ["anti-rotation"],
+  targets: ["stability"]
+},
+
+{
+  id: "CO006",
+  name: "케이블 안티로테이션",
+  category: "core",
+  area: "trunk",
+  tags: ["anti-rotation"],
+  targets: ["stability"]
+},
+
+{
+  id: "CO007",
+  name: "케이블 로테이션",
+  category: "core",
+  area: "trunk",
+  tags: ["rotation"],
+  targets: ["power", "coordination"]
+},
+
+{
+  id: "CO008",
+  name: "수트케이스 캐리",
+  category: "core",
+  area: "trunk",
+  tags: ["carry"],
+  targets: ["stability", "symmetry"]
+},
+
+{
+  id: "CO009",
+  name: "파머스 캐리",
+  category: "core",
+  area: "full",
+  tags: ["carry"],
+  targets: ["posture", "stability"]
+},
+
+{
+  id: "CO010",
+  name: "베어 크롤",
+  category: "core",
+  area: "full",
+  tags: ["coordination"],
+  targets: ["coordination", "stability"]
+},
+
+
+/* =========================================================
+   05. POWER / OLYMPIC LIFT
+========================================================= */
+
+{
+  id: "PW001",
+  name: "파워클린",
+  category: "power",
+  area: "full",
+  tags: ["olympic", "explosive"],
+  targets: ["power", "coordination"]
+},
+
+{
+  id: "PW002",
+  name: "행 파워클린",
+  category: "power",
+  area: "full",
+  tags: ["olympic"],
+  targets: ["power", "technique"]
+},
+
+{
+  id: "PW003",
+  name: "클린 풀",
+  category: "power",
+  area: "full",
+  tags: ["olympic"],
+  targets: ["power"]
+},
+
+{
+  id: "PW004",
+  name: "파워 스내치",
+  category: "power",
+  area: "full",
+  tags: ["olympic"],
+  targets: ["power", "coordination"]
+},
+
+{
+  id: "PW005",
+  name: "행 파워 스내치",
+  category: "power",
+  area: "full",
+  tags: ["olympic"],
+  targets: ["power", "technique"]
+},
+
+{
+  id: "PW006",
+  name: "푸시 프레스",
+  category: "power",
+  area: "full",
+  tags: ["explosive"],
+  targets: ["power"]
+},
+
+{
+  id: "PW007",
+  name: "메디신볼 체스트 패스",
+  category: "power",
+  area: "upper",
+  tags: ["medicine-ball"],
+  targets: ["power"]
+},
+
+{
+  id: "PW008",
+  name: "메디신볼 오버헤드 스로우",
+  category: "power",
+  area: "full",
+  tags: ["medicine-ball"],
+  targets: ["power"]
+},
+
+{
+  id: "PW009",
+  name: "메디신볼 로테이션 스로우",
+  category: "power",
+  area: "trunk",
+  tags: ["rotation"],
+  targets: ["power", "coordination"]
+},
+
+
+/* =========================================================
+   06. PLYOMETRIC
+========================================================= */
+
+{
+  id: "PL001",
+  name: "포고 점프",
+  category: "plyometric",
+  area: "lower",
+  tags: ["reactive"],
+  targets: ["power", "stiffness"]
+},
+
+{
+  id: "PL002",
+  name: "스쿼트 점프",
+  category: "plyometric",
+  area: "lower",
+  tags: ["vertical"],
+  targets: ["power"]
+},
+
+{
+  id: "PL003",
+  name: "카운터무브먼트 점프",
+  category: "plyometric",
+  area: "lower",
+  tags: ["vertical"],
+  targets: ["power"]
+},
+
+{
+  id: "PL004",
+  name: "박스 점프",
+  category: "plyometric",
+  area: "lower",
+  tags: ["vertical"],
+  targets: ["power"]
+},
+
+{
+  id: "PL005",
+  name: "브로드 점프",
+  category: "plyometric",
+  area: "lower",
+  tags: ["horizontal"],
+  targets: ["power"]
+},
+
+{
+  id: "PL006",
+  name: "싱글 레그 홉",
+  category: "plyometric",
+  area: "lower",
+  tags: ["unilateral"],
+  targets: ["symmetry", "power"]
+},
+
+{
+  id: "PL007",
+  name: "라테랄 바운드",
+  category: "plyometric",
+  area: "lower",
+  tags: ["lateral"],
+  targets: ["power", "balance"]
+},
+
+{
+  id: "PL008",
+  name: "스케이터 점프",
+  category: "plyometric",
+  area: "lower",
+  tags: ["lateral"],
+  targets: ["balance", "power"]
+},
+
+{
+  id: "PL009",
+  name: "바운딩",
+  category: "plyometric",
+  area: "lower",
+  tags: ["running"],
+  targets: ["power", "coordination"]
+},
+
+{
+  id: "PL010",
+  name: "스킵 바운딩",
+  category: "plyometric",
+  area: "lower",
+  tags: ["running"],
+  targets: ["coordination", "power"]
+},
+
+
+/* =========================================================
+   07. SPEED
+========================================================= */
+
+{
+  id: "SP001",
+  name: "10m 가속 질주",
+  category: "speed",
+  area: "full",
+  tags: ["acceleration"],
+  targets: ["speed"]
+},
+
+{
+  id: "SP002",
+  name: "20m 가속 질주",
+  category: "speed",
+  area: "full",
+  tags: ["acceleration"],
+  targets: ["speed"]
+},
+
+{
+  id: "SP003",
+  name: "30m 스프린트",
+  category: "speed",
+  area: "full",
+  tags: ["sprint"],
+  targets: ["speed"]
+},
+
+{
+  id: "SP004",
+  name: "플라잉 20m",
+  category: "speed",
+  area: "full",
+  tags: ["max-speed"],
+  targets: ["speed"]
+},
+
+{
+  id: "SP005",
+  name: "플라잉 30m",
+  category: "speed",
+  area: "full",
+  tags: ["max-speed"],
+  targets: ["speed"]
+},
+
+{
+  id: "SP006",
+  name: "저항 스프린트",
+  category: "speed",
+  area: "full",
+  tags: ["acceleration"],
+  targets: ["speed", "power"]
+},
+
+{
+  id: "SP007",
+  name: "힐 스프린트",
+  category: "speed",
+  area: "full",
+  tags: ["hill"],
+  targets: ["speed", "power"]
+},
+
+
+/* =========================================================
+   08. RUNNING TECHNIQUE
+========================================================= */
+
+{
+  id: "RT001",
+  name: "A-Skip",
+  category: "technique",
+  area: "running",
+  tags: ["running"],
+  targets: ["technique", "coordination"]
+},
+
+{
+  id: "RT002",
+  name: "B-Skip",
+  category: "technique",
+  area: "running",
+  tags: ["running"],
+  targets: ["technique", "coordination"]
+},
+
+{
+  id: "RT003",
+  name: "하이니",
+  category: "technique",
+  area: "running",
+  tags: ["running"],
+  targets: ["technique"]
+},
+
+{
+  id: "RT004",
+  name: "월 드라이브",
+  category: "technique",
+  area: "running",
+  tags: ["acceleration"],
+  targets: ["posture", "technique"]
+},
+
+{
+  id: "RT005",
+  name: "스트라이드",
+  category: "running",
+  area: "running",
+  tags: ["running"],
+  targets: ["technique", "speed"]
+},
+
+{
+  id: "RT006",
+  name: "언덕 반복주",
+  category: "running",
+  area: "running",
+  tags: ["hill"],
+  targets: ["power", "endurance"]
+},
+
+{
+  id: "RT007",
+  name: "템포런",
+  category: "conditioning",
+  area: "running",
+  tags: ["endurance"],
+  targets: ["endurance"]
+},
+
+{
+  id: "RT008",
+  name: "인터벌 러닝",
+  category: "conditioning",
+  area: "running",
+  tags: ["interval"],
+  targets: ["speed", "endurance"]
+},
+
+
+/* =========================================================
+   09. BALANCE / CONTROL
+========================================================= */
+
+{
+  id: "BA001",
+  name: "싱글 레그 밸런스",
+  category: "balance",
+  area: "lower",
+  tags: ["single-leg"],
+  targets: ["balance", "symmetry"]
+},
+
+{
+  id: "BA002",
+  name: "싱글 레그 리치",
+  category: "balance",
+  area: "lower",
+  tags: ["single-leg"],
+  targets: ["balance", "coordination"]
+},
+
+{
+  id: "BA003",
+  name: "Y 밸런스 드릴",
+  category: "balance",
+  area: "lower",
+  tags: ["single-leg"],
+  targets: ["balance", "symmetry"]
+},
+
+{
+  id: "BA004",
+  name: "싱글 레그 착지",
+  category: "balance",
+  area: "lower",
+  tags: ["landing"],
+  targets: ["stability", "balance"]
+},
+
+{
+  id: "BA005",
+  name: "점프 후 정지",
+  category: "balance",
+  area: "lower",
+  tags: ["landing"],
+  targets: ["stability"]
+},
+
+
+/* =========================================================
+   10. MOBILITY
+========================================================= */
+
+{
+  id: "MO001",
+  name: "월 앵클 모빌리티",
+  category: "mobility",
+  area: "ankle",
+  tags: ["ankle"],
+  targets: ["mobility"]
+},
+
+{
+  id: "MO002",
+  name: "딥 스쿼트 모빌리티",
+  category: "mobility",
+  area: "lower",
+  tags: ["hip", "ankle"],
+  targets: ["mobility", "posture"]
+},
+
+{
+  id: "MO003",
+  name: "90/90 힙 모빌리티",
+  category: "mobility",
+  area: "hip",
+  tags: ["hip"],
+  targets: ["mobility"]
+},
+
+{
+  id: "MO004",
+  name: "힙 플렉서 모빌리티",
+  category: "mobility",
+  area: "hip",
+  tags: ["hip"],
+  targets: ["mobility"]
+},
+
+{
+  id: "MO005",
+  name: "흉추 회전 드릴",
+  category: "mobility",
+  area: "thoracic",
+  tags: ["thoracic"],
+  targets: ["mobility", "posture"]
+},
+
+{
+  id: "MO006",
+  name: "월 슬라이드",
+  category: "mobility",
+  area: "shoulder",
+  tags: ["shoulder"],
+  targets: ["mobility", "posture"]
+},
+
+
+/* =========================================================
+   11. AGILITY / CHANGE OF DIRECTION
+========================================================= */
+
+{
+  id: "AG001",
+  name: "5-10-5 셔틀",
+  category: "agility",
+  area: "full",
+  tags: ["change-direction"],
+  targets: ["speed", "coordination"]
+},
+
+{
+  id: "AG002",
+  name: "T 드릴",
+  category: "agility",
+  area: "full",
+  tags: ["change-direction"],
+  targets: ["coordination"]
+},
+
+{
+  id: "AG003",
+  name: "사이드 셔플",
+  category: "agility",
+  area: "full",
+  tags: ["lateral"],
+  targets: ["coordination", "speed"]
+},
+
+{
+  id: "AG004",
+  name: "감속 드릴",
+  category: "agility",
+  area: "full",
+  tags: ["deceleration"],
+  targets: ["stability", "technique"]
+},
+
+{
+  id: "AG005",
+  name: "45도 컷",
+  category: "agility",
+  area: "full",
+  tags: ["change-direction"],
+  targets: ["technique", "stability"]
+},
+
+{
+  id: "AG006",
+  name: "90도 컷",
+  category: "agility",
+  area: "full",
+  tags: ["change-direction"],
+  targets: ["technique", "stability"]
+},
+
+
+/* =========================================================
+   12. BIATHLON / CROSS-COUNTRY
+========================================================= */
+
+{
+  id: "BI001",
+  name: "V1 오르막 기술 드릴",
+  category: "sport-specific",
+  sport: ["biathlon", "crossCountry"],
+  tags: ["ski", "V1", "uphill"],
+  targets: ["technique", "coordination"]
+},
+
+{
+  id: "BI002",
+  name: "V2 기술 드릴",
+  category: "sport-specific",
+  sport: ["biathlon", "crossCountry"],
+  tags: ["ski", "V2"],
+  targets: ["technique", "symmetry"]
+},
+
+{
+  id: "BI003",
+  name: "V2 Alternate 기술 드릴",
+  category: "sport-specific",
+  sport: ["biathlon", "crossCountry"],
+  tags: ["ski", "V2A"],
+  targets: ["technique", "coordination"]
+},
+
+{
+  id: "BI004",
+  name: "노폴 스케이팅",
+  category: "sport-specific",
+  sport: ["biathlon", "crossCountry"],
+  tags: ["ski", "balance"],
+  targets: ["balance", "technique"]
+},
+
+{
+  id: "BI005",
+  name: "싱글 스키 글라이드",
+  category: "sport-specific",
+  sport: ["biathlon", "crossCountry"],
+  tags: ["ski", "balance"],
+  targets: ["balance", "symmetry"]
+},
+
+{
+  id: "BI006",
+  name: "더블폴링",
+  category: "sport-specific",
+  sport: ["biathlon", "crossCountry"],
+  tags: ["ski", "poling"],
+  targets: ["technique", "power"]
+},
+
+{
+  id: "BI007",
+  name: "폴링 타이밍 드릴",
+  category: "sport-specific",
+  sport: ["biathlon", "crossCountry"],
+  tags: ["ski", "poling"],
+  targets: ["coordination", "technique"]
+},
+
+{
+  id: "BI008",
+  name: "오르막 롤러스키",
+  category: "sport-specific",
+  sport: ["biathlon", "crossCountry"],
+  tags: ["rollerski", "uphill"],
+  targets: ["technique", "endurance"]
+},
+
+{
+  id: "BI009",
+  name: "롤러스키 인터벌",
+  category: "sport-specific",
+  sport: ["biathlon", "crossCountry"],
+  tags: ["rollerski", "interval"],
+  targets: ["endurance", "technique"]
+},
+
+{
+  id: "BI010",
+  name: "스키 바운딩",
+  category: "sport-specific",
+  sport: ["biathlon", "crossCountry"],
+  tags: ["ski", "bounding"],
+  targets: ["power", "technique"]
+},
+
+{
+  id: "BI011",
+  name: "지형 변화 주법 전환 드릴",
+  category: "sport-specific",
+  sport: ["biathlon", "crossCountry"],
+  tags: ["ski", "transition"],
+  targets: ["technique", "coordination"]
+},
+
+{
+  id: "BI012",
+  name: "다운힐 포지션 드릴",
+  category: "sport-specific",
+  sport: ["biathlon", "crossCountry"],
+  tags: ["ski", "downhill"],
+  targets: ["posture", "balance"]
+},
+
+{
+  id: "BI013",
+  name: "코너링 기술 드릴",
+  category: "sport-specific",
+  sport: ["biathlon", "crossCountry"],
+  tags: ["ski", "corner"],
+  targets: ["balance", "technique"]
+},
+
+{
+  id: "BI014",
+  name: "스키에르그 인터벌",
+  category: "sport-specific",
+  sport: ["biathlon", "crossCountry"],
+  tags: ["ski", "upper"],
+  targets: ["power", "endurance"]
+},
+
+
+/* =========================================================
+   13. SPEED SKATING / SHORT TRACK
+========================================================= */
+
+{
+  id: "SK001",
+  name: "저자세 스케이팅 홀드",
+  category: "sport-specific",
+  sport: ["speedSkating", "shortTrack"],
+  tags: ["skating"],
+  targets: ["posture", "stability"]
+},
+
+{
+  id: "SK002",
+  name: "사이드 푸시 드릴",
+  category: "sport-specific",
+  sport: ["speedSkating", "shortTrack"],
+  tags: ["skating"],
+  targets: ["technique", "power"]
+},
+
+{
+  id: "SK003",
+  name: "크로스오버 드릴",
+  category: "sport-specific",
+  sport: ["speedSkating", "shortTrack"],
+  tags: ["corner"],
+  targets: ["coordination", "technique"]
+},
+
+{
+  id: "SK004",
+  name: "스케이팅 스타트 드릴",
+  category: "sport-specific",
+  sport: ["speedSkating", "shortTrack"],
+  tags: ["start"],
+  targets: ["speed", "power"]
+},
+
+
+/* =========================================================
+   14. ALPINE / SNOWBOARD
+========================================================= */
+
+{
+  id: "AS001",
+  name: "엣지 컨트롤 드릴",
+  category: "sport-specific",
+  sport: ["alpineSki", "snowboard"],
+  tags: ["edge"],
+  targets: ["technique", "balance"]
+},
+
+{
+  id: "AS002",
+  name: "카빙 턴 드릴",
+  category: "sport-specific",
+  sport: ["alpineSki", "snowboard"],
+  tags: ["turn"],
+  targets: ["technique", "coordination"]
+},
+
+{
+  id: "AS003",
+  name: "압력 이동 드릴",
+  category: "sport-specific",
+  sport: ["alpineSki"],
+  tags: ["pressure"],
+  targets: ["symmetry", "balance"]
+},
+
+{
+  id: "AS004",
+  name: "턴 연결 드릴",
+  category: "sport-specific",
+  sport: ["alpineSki", "snowboard"],
+  tags: ["turn"],
+  targets: ["coordination", "technique"]
+},
+
+
+/* =========================================================
+   15. SPRINT / TRACK
+========================================================= */
+
+{
+  id: "TR001",
+  name: "블록 스타트",
+  category: "sport-specific",
+  sport: ["sprint"],
+  tags: ["start"],
+  targets: ["speed", "technique"]
+},
+
+{
+  id: "TR002",
+  name: "첫 3스텝 가속 드릴",
+  category: "sport-specific",
+  sport: ["sprint"],
+  tags: ["acceleration"],
+  targets: ["speed", "technique"]
+},
+
+{
+  id: "TR003",
+  name: "암 액션 드릴",
+  category: "sport-specific",
+  sport: ["sprint", "middleDistance", "longDistance"],
+  tags: ["running"],
+  targets: ["technique", "coordination"]
+},
+
+{
+  id: "TR004",
+  name: "케이던스 드릴",
+  category: "sport-specific",
+  sport: ["sprint", "middleDistance", "longDistance"],
+  tags: ["running"],
+  targets: ["technique", "speed"]
+},
+
+{
+  id: "TR005",
+  name: "페이스 컨트롤 러닝",
+  category: "sport-specific",
+  sport: ["middleDistance", "longDistance"],
+  tags: ["running"],
+  targets: ["endurance", "technique"]
+},
+
+
+/* =========================================================
+   16. JUMP EVENTS
+========================================================= */
+
+{
+  id: "JP001",
+  name: "도움닫기 리듬 드릴",
+  category: "sport-specific",
+  sport: ["longJump", "highJump"],
+  tags: ["approach"],
+  targets: ["technique", "coordination"]
+},
+
+{
+  id: "JP002",
+  name: "발구름 타이밍 드릴",
+  category: "sport-specific",
+  sport: ["longJump", "highJump"],
+  tags: ["takeoff"],
+  targets: ["technique", "power"]
+},
+
+{
+  id: "JP003",
+  name: "멀리뛰기 착지 드릴",
+  category: "sport-specific",
+  sport: ["longJump"],
+  tags: ["landing"],
+  targets: ["technique", "coordination"]
+},
+
+{
+  id: "JP004",
+  name: "높이뛰기 곡선 도움닫기",
+  category: "sport-specific",
+  sport: ["highJump"],
+  tags: ["approach"],
+  targets: ["technique", "coordination"]
+},
+
+
+/* =========================================================
+   17. SWIMMING
+========================================================= */
+
+{
+  id: "SW001",
+  name: "스트림라인 드릴",
+  category: "sport-specific",
+  sport: ["swimming"],
+  tags: ["swimming"],
+  targets: ["posture", "technique"]
+},
+
+{
+  id: "SW002",
+  name: "캐치 드릴",
+  category: "sport-specific",
+  sport: ["swimming"],
+  tags: ["swimming"],
+  targets: ["technique"]
+},
+
+{
+  id: "SW003",
+  name: "킥 드릴",
+  category: "sport-specific",
+  sport: ["swimming"],
+  tags: ["swimming"],
+  targets: ["technique", "endurance"]
+},
+
+{
+  id: "SW004",
+  name: "턴 드릴",
+  category: "sport-specific",
+  sport: ["swimming"],
+  tags: ["swimming"],
+  targets: ["technique", "speed"]
+},
+
+
+/* =========================================================
+   18. CYCLING
+========================================================= */
+
+{
+  id: "CY001",
+  name: "고케이던스 페달링",
+  category: "sport-specific",
+  sport: ["cycling"],
+  tags: ["cycling"],
+  targets: ["coordination", "technique"]
+},
+
+{
+  id: "CY002",
+  name: "저케이던스 토크 드릴",
+  category: "sport-specific",
+  sport: ["cycling"],
+  tags: ["cycling"],
+  targets: ["strength", "power"]
+},
+
+{
+  id: "CY003",
+  name: "사이클 스프린트",
+  category: "sport-specific",
+  sport: ["cycling"],
+  tags: ["cycling"],
+  targets: ["speed", "power"]
+},
+
+
+/* =========================================================
+   19. ROWING
+========================================================= */
+
+{
+  id: "RO001",
+  name: "캐치 포지션 드릴",
+  category: "sport-specific",
+  sport: ["rowing"],
+  tags: ["rowing"],
+  targets: ["posture", "technique"]
+},
+
+{
+  id: "RO002",
+  name: "드라이브 시퀀스 드릴",
+  category: "sport-specific",
+  sport: ["rowing"],
+  tags: ["rowing"],
+  targets: ["coordination", "power"]
+},
+
+{
+  id: "RO003",
+  name: "스트로크 리듬 드릴",
+  category: "sport-specific",
+  sport: ["rowing"],
+  tags: ["rowing"],
+  targets: ["technique", "coordination"]
+},
+
+
+/* =========================================================
+   20. TEAM SPORTS
+========================================================= */
+
+{
+  id: "TS001",
+  name: "축구 방향전환 드릴",
+  category: "sport-specific",
+  sport: ["football"],
+  tags: ["COD"],
+  targets: ["speed", "technique"]
+},
+
+{
+  id: "TS002",
+  name: "축구 킥 동작 드릴",
+  category: "sport-specific",
+  sport: ["football"],
+  tags: ["kick"],
+  targets: ["technique", "balance"]
+},
+
+{
+  id: "TS003",
+  name: "농구 첫 스텝 드릴",
+  category: "sport-specific",
+  sport: ["basketball"],
+  tags: ["acceleration"],
+  targets: ["speed", "technique"]
+},
+
+{
+  id: "TS004",
+  name: "농구 점프 착지 드릴",
+  category: "sport-specific",
+  sport: ["basketball"],
+  tags: ["landing"],
+  targets: ["stability", "balance"]
+},
+
+{
+  id: "TS005",
+  name: "농구 수비 슬라이드",
+  category: "sport-specific",
+  sport: ["basketball"],
+  tags: ["lateral"],
+  targets: ["speed", "coordination"]
+},
+
+{
+  id: "TS006",
+  name: "배구 어프로치 점프",
+  category: "sport-specific",
+  sport: ["volleyball"],
+  tags: ["jump"],
+  targets: ["power", "technique"]
+},
+
+{
+  id: "TS007",
+  name: "배구 블로킹 풋워크",
+  category: "sport-specific",
+  sport: ["volleyball"],
+  tags: ["footwork"],
+  targets: ["coordination", "speed"]
+},
+
+
+/* =========================================================
+   21. RACKET SPORTS
+========================================================= */
+
+{
+  id: "RA001",
+  name: "테니스 스플릿 스텝",
+  category: "sport-specific",
+  sport: ["tennis"],
+  tags: ["footwork"],
+  targets: ["speed", "coordination"]
+},
+
+{
+  id: "RA002",
+  name: "테니스 사이드 이동",
+  category: "sport-specific",
+  sport: ["tennis"],
+  tags: ["lateral"],
+  targets: ["speed", "balance"]
+},
+
+{
+  id: "RA003",
+  name: "배드민턴 스플릿 스텝",
+  category: "sport-specific",
+  sport: ["badminton"],
+  tags: ["footwork"],
+  targets: ["speed", "coordination"]
+},
+
+{
+  id: "RA004",
+  name: "배드민턴 런지 복귀",
+  category: "sport-specific",
+  sport: ["badminton"],
+  tags: ["footwork"],
+  targets: ["balance", "speed"]
+},
+
+
+/* =========================================================
+   22. WEIGHTLIFTING TECHNIQUE
+========================================================= */
+
+{
+  id: "WL001",
+  name: "클린 스타트 포지션 드릴",
+  category: "weightlifting",
+  sport: ["weightlifting"],
+  tags: ["clean"],
+  targets: ["posture", "technique"]
+},
+
+{
+  id: "WL002",
+  name: "클린 퍼스트 풀",
+  category: "weightlifting",
+  sport: ["weightlifting"],
+  tags: ["clean"],
+  targets: ["technique"]
+},
+
+{
+  id: "WL003",
+  name: "행 클린",
+  category: "weightlifting",
+  sport: ["weightlifting"],
+  tags: ["clean"],
+  targets: ["power", "technique"]
+},
+
+{
+  id: "WL004",
+  name: "톨 클린",
+  category: "weightlifting",
+  sport: ["weightlifting"],
+  tags: ["clean"],
+  targets: ["technique", "speed"]
+},
+
+{
+  id: "WL005",
+  name: "클린 캐치 드릴",
+  category: "weightlifting",
+  sport: ["weightlifting"],
+  tags: ["clean"],
+  targets: ["technique", "stability"]
+},
+
+{
+  id: "WL006",
+  name: "스내치 스타트 포지션",
+  category: "weightlifting",
+  sport: ["weightlifting"],
+  tags: ["snatch"],
+  targets: ["posture", "technique"]
+},
+
+{
+  id: "WL007",
+  name: "행 스내치",
+  category: "weightlifting",
+  sport: ["weightlifting"],
+  tags: ["snatch"],
+  targets: ["power", "technique"]
+},
+
+{
+  id: "WL008",
+  name: "오버헤드 스쿼트",
+  category: "weightlifting",
+  sport: ["weightlifting"],
+  tags: ["snatch"],
+  targets: ["mobility", "stability"]
+},
+
+{
+  id: "WL009",
+  name: "스내치 밸런스",
+  category: "weightlifting",
+  sport: ["weightlifting"],
+  tags: ["snatch"],
+  targets: ["stability", "technique"]
+},
+
+{
+  id: "WL010",
+  name: "푸시 저크",
+  category: "weightlifting",
+  sport: ["weightlifting"],
+  tags: ["jerk"],
+  targets: ["power", "technique"]
+},
+
+{
+  id: "WL011",
+  name: "스플릿 저크",
+  category: "weightlifting",
+  sport: ["weightlifting"],
+  tags: ["jerk"],
+  targets: ["technique", "balance"]
+},
+
+{
+  id: "WL012",
+  name: "바벨 궤적 교정 드릴",
+  category: "weightlifting",
+  sport: ["weightlifting"],
+  tags: ["bar-path"],
+  targets: ["technique"]
+}
+
+];
+
+
+/* =========================================================
+   23. SEARCH FUNCTIONS
+========================================================= */
+
+function getTrainingLibrary() {
+
+  return [
+    ...SEOLCHEON_TRAINING_LIBRARY
+  ];
+
+}
+
+
+function getTrainingById(
+  id
+) {
+
+  return (
+    SEOLCHEON_TRAINING_LIBRARY
+      .find(
+        item =>
+          item.id === id
+      ) ||
+    null
+  );
+
+}
+
+
+function getTrainingByCategory(
+  category
+) {
+
+  return SEOLCHEON_TRAINING_LIBRARY
+    .filter(
+      item =>
+        item.category ===
+        category
+    );
+
+}
+
+
+function getTrainingByTarget(
+  target
+) {
+
+  return SEOLCHEON_TRAINING_LIBRARY
+    .filter(
+      item =>
+        Array.isArray(
+          item.targets
+        ) &&
+        item.targets.includes(
+          target
+        )
+    );
+
+}
+
+
+function getTrainingBySport(
+  sport
+) {
+
+  return SEOLCHEON_TRAINING_LIBRARY
+    .filter(
+      item =>
+        Array.isArray(
+          item.sport
+        ) &&
+        item.sport.includes(
+          sport
+        )
+    );
+
+}
+
+
+function searchTraining(
+  keyword
+) {
+
+  const query =
+    String(
+      keyword || ""
+    )
+    .trim()
+    .toLowerCase();
+
+
+  if (!query) {
+
+    return getTrainingLibrary();
+
+  }
+
+
+  return SEOLCHEON_TRAINING_LIBRARY
+    .filter(
+      item => {
+
+        const text = [
+          item.id,
+          item.name,
+          item.category,
+          item.area,
+          ...(item.tags || []),
+          ...(item.targets || []),
+          ...(item.sport || [])
+        ]
+        .join(" ")
+        .toLowerCase();
+
+
+        return text.includes(
+          query
+        );
+
+      }
+    );
+
+}
+
+
+/* =========================================================
+   24. MULTIPLE TARGET SEARCH
+========================================================= */
+
+function getTrainingForWeaknesses(
+  weaknesses = [],
+  limit = 12
+) {
+
+  const targets =
+    weaknesses
+      .map(
+        weakness =>
+          typeof weakness === "string"
+            ? weakness
+            : weakness.key
+      )
+      .filter(Boolean);
+
+
+  const scored =
+    SEOLCHEON_TRAINING_LIBRARY
+      .map(
+        item => {
+
+          let score = 0;
+
+
+          targets.forEach(
+            target => {
+
+              if (
+                item.targets &&
+                item.targets.includes(
+                  target
+                )
+              ) {
+
+                score += 10;
+
+              }
+
+            }
+          );
+
+
+          return {
+            ...item,
+            recommendationScore:
+              score
+          };
+
+        }
+      )
+
+      .filter(
+        item =>
+          item.recommendationScore >
+          0
+      )
+
+      .sort(
+        (a, b) =>
+          b.recommendationScore -
+          a.recommendationScore
+      );
+
+
+  return scored.slice(
+    0,
+    limit
+  );
+
+}
+
+
+/* =========================================================
+   25. SPORT + WEAKNESS RECOMMENDATION
+========================================================= */
+
+function getSmartTrainingRecommendation({
+  sport = "",
+  weaknesses = [],
+  limit = 12
+} = {}) {
+
+  const targets =
+    weaknesses
+      .map(
+        weakness =>
+          typeof weakness === "string"
+            ? weakness
+            : weakness.key
+      )
+      .filter(Boolean);
+
+
+  const scored =
+    SEOLCHEON_TRAINING_LIBRARY
+      .map(
+        item => {
+
+          let score = 0;
+
+
+          /* 약점 일치 */
+
+          targets.forEach(
+            target => {
+
+              if (
+                item.targets &&
+                item.targets.includes(
+                  target
+                )
+              ) {
+
+                score += 20;
+
+              }
+
+            }
+          );
+
+
+          /* 종목 일치 */
+
+          if (
+            sport &&
+            Array.isArray(
+              item.sport
+            ) &&
+            item.sport.includes(
+              sport
+            )
+          ) {
+
+            score += 30;
+
+          }
+
+
+          /* 공통 훈련 */
+
+          if (
+            !item.sport
+          ) {
+
+            score += 5;
+
+          }
+
+
+          return {
+            ...item,
+            recommendationScore:
+              score
+          };
+
+        }
+      )
+
+      .filter(
+        item =>
+          item.recommendationScore >
+          0
+      )
+
+      .sort(
+        (a, b) =>
+          b.recommendationScore -
+          a.recommendationScore
+      );
+
+
+  /* 중복 이름 제거 */
+
+  const used =
+    new Set();
+
+
+  return scored
+    .filter(
+      item => {
+
+        if (
+          used.has(
+            item.name
+          )
+        ) {
+
+          return false;
+
+        }
+
+
+        used.add(
+          item.name
+        );
+
+        return true;
+
+      }
+    )
+    .slice(
+      0,
+      limit
+    );
+
+}
+
+
+/* =========================================================
+   26. RANDOM TRAINING
+========================================================= */
+
+function getRandomTraining(
+  count = 6
+) {
+
+  const copy = [
+    ...SEOLCHEON_TRAINING_LIBRARY
+  ];
+
+
+  for (
+    let i =
+      copy.length - 1;
+
+    i > 0;
+
+    i--
+  ) {
+
+    const j =
+      Math.floor(
+        Math.random() *
+        (i + 1)
+      );
+
+
+    [
+      copy[i],
+      copy[j]
+    ] = [
+      copy[j],
+      copy[i]
+    ];
+
+  }
+
+
+  return copy.slice(
+    0,
+    count
+  );
+
+}
+
+
+/* =========================================================
+   27. TRAINING STATISTICS
+========================================================= */
+
+function getTrainingLibraryStats() {
+
+  const categories =
+    {};
+
+  const sports =
+    {};
+
+
+  SEOLCHEON_TRAINING_LIBRARY
+    .forEach(
+      item => {
+
+        categories[
+          item.category
+        ] =
+          (
+            categories[
+              item.category
+            ] ||
+            0
+          ) + 1;
+
+
+        if (
+          Array.isArray(
+            item.sport
+          )
+        ) {
+
+          item.sport.forEach(
+            sport => {
+
+              sports[
+                sport
+              ] =
+                (
+                  sports[
+                    sport
+                  ] ||
+                  0
+                ) + 1;
+
+            }
+          );
+
+        }
+
+      }
+    );
+
+
+  return {
+
+    total:
+      SEOLCHEON_TRAINING_LIBRARY
+        .length,
+
+    categories,
+
+    sports
+
+  };
+
+}
+
+
+/* =========================================================
+   28. PUBLIC API
+========================================================= */
+
+window.SeolcheonTrainingLibrary = {
+
+  data:
+    SEOLCHEON_TRAINING_LIBRARY,
+
+  all:
+    getTrainingLibrary,
+
+  byId:
+    getTrainingById,
+
+  byCategory:
+    getTrainingByCategory,
+
+  byTarget:
+    getTrainingByTarget,
+
+  bySport:
+    getTrainingBySport,
+
+  search:
+    searchTraining,
+
+  forWeaknesses:
+    getTrainingForWeaknesses,
+
+  recommend:
+    getSmartTrainingRecommendation,
+
+  random:
+    getRandomTraining,
+
+  stats:
+    getTrainingLibraryStats
+
+};
+
+
+/* =========================================================
+   READY
+========================================================= */
+
+console.log(
+  "[SEOLCHEON] Training Library Ready:",
+  SEOLCHEON_TRAINING_LIBRARY.length,
+  "exercises"
+);
